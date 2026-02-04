@@ -1,0 +1,40 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Game {
+  id            String   @id @default(cuid())
+  gameId        Int      @unique @map("game_id") // BGA game ID
+  gameLog       Json     @map("game_log") // Full JSON from BGA API
+
+  // Preprocessed searchable fields
+  playerName    String?  @map("player_name")
+  playerRace    String?  @map("player_race")
+  finalScore    Int?     @map("final_score")
+  playerElo     Int?     @map("player_elo")
+  gameDate      DateTime? @map("game_date")
+  roundCount    Int?     @map("round_count")
+  playerCount   Int?     @map("player_count")
+  buildingsData Json?    @map("buildings_data") // JSON array of building actions
+
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([playerRace])
+  @@index([playerName])
+  @@index([finalScore])
+  @@index([playerElo])
+  @@index([gameDate])
+  @@map("games")
+}

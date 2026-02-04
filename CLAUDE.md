@@ -38,9 +38,20 @@ This is a web application designed with the following deployment requirements:
 - **Hybrid Storage Strategy**: Store both raw game logs (JSONB) and preprocessed searchable fields
 - **Expected Scale**: 10k-100k games
 - **Primary Table**: `games` with fields:
-  - `game_id` (BGA game identifier)
-  - `game_log` (full JSON from BGA API)
-  - Preprocessed fields: `player_race`, `final_score`, `player_name`, `game_date`, `round_count`, `player_count`, `buildings_data`
+  - `id` (String, CUID) - Primary key
+  - `game_id` (Integer, unique, indexed) - BGA game identifier
+  - `game_log` (JSONB) - Full JSON from BGA API
+  - Preprocessed searchable fields (all indexed):
+    - `player_name` (String, nullable)
+    - `player_race` (String, nullable)
+    - `final_score` (Integer, nullable)
+    - `player_elo` (Integer, nullable)
+    - `game_date` (DateTime, nullable)
+    - `round_count` (Integer, nullable)
+    - `player_count` (Integer, nullable)
+    - `buildings_data` (JSONB, nullable) - Array of building actions
+  - `created_at` (DateTime) - Record creation timestamp
+  - `updated_at` (DateTime) - Record update timestamp
 
 ### Data Flow
 1. User authenticates with BGA credentials
@@ -80,14 +91,16 @@ bga_gaia_parser/
 # Install dependencies
 npm install
 
-# Start local PostgreSQL database
+# Start local PostgreSQL database (Docker must be running)
 docker-compose up -d
 
 # Run database migrations
-npx prisma migrate dev
+npm run db:migrate
+# or: npx prisma migrate dev
 
-# Generate Prisma client
-npx prisma generate
+# Generate Prisma client (usually happens automatically)
+npm run db:generate
+# or: npx prisma generate
 ```
 
 ### Development
@@ -95,14 +108,17 @@ npx prisma generate
 # Start development server (http://localhost:3000)
 npm run dev
 
-# Open Prisma Studio (database UI)
-npx prisma studio
+# Open Prisma Studio (database UI in browser)
+npm run db:studio
+# or: npx prisma studio
 
 # Run database migrations
-npx prisma migrate dev
+npm run db:migrate
+# or: npx prisma migrate dev
 
-# Reset database (warning: deletes all data)
-npx prisma migrate reset
+# Push schema changes without creating migration
+npm run db:push
+# or: npx prisma db push
 ```
 
 ### Building & Testing
@@ -120,16 +136,44 @@ npm run type-check
 npm run lint
 ```
 
-### Database Management
+### Docker & Database Management
 ```bash
+# Start PostgreSQL container
+docker-compose up -d
+
+# Stop PostgreSQL container
+docker-compose down
+
+# Stop and remove volumes (deletes all data!)
+docker-compose down -v
+
+# View container logs
+docker-compose logs -f postgres
+
+# Check container status
+docker-compose ps
+
 # Create a new migration
 npx prisma migrate dev --name migration_name
 
+# Reset database (warning: deletes all data)
+npx prisma migrate reset
+
 # Apply migrations to production
 npx prisma migrate deploy
+```
 
-# View database in browser
-npx prisma studio
+### NPM Scripts Reference
+```bash
+npm run dev           # Start Next.js dev server
+npm run build         # Build for production
+npm run start         # Start production server
+npm run lint          # Run ESLint
+npm run type-check    # Run TypeScript compiler check
+npm run db:studio     # Open Prisma Studio (database UI)
+npm run db:migrate    # Run database migrations
+npm run db:push       # Push schema without migration
+npm run db:generate   # Generate Prisma Client
 ```
 
 ## Current Project Status
@@ -154,12 +198,30 @@ npx prisma studio
 - Responsive layout with Tailwind CSS
 - Form reset functionality
 
+**Phase 2: Backend & Database Setup** (Partially Complete)
+- ✅ **Prisma Setup**: Installed `@prisma/client` and `prisma` packages
+- ✅ **Database Schema**: Created `prisma/schema.prisma` with Game model
+  - Fields: `id`, `game_id` (unique), `game_log` (JSONB), searchable fields, timestamps
+  - Indexes: `player_race`, `player_name`, `final_score`, `player_elo`, `game_date`
+  - Migration: `20260204133634_init` applied successfully
+- ✅ **Docker Compose**: Created `docker-compose.yml` with PostgreSQL 16 Alpine
+  - Container: `bga_gaia_postgres`
+  - Database: `bga_gaia_db` (user: `bga_user`)
+  - Port: 5432, Volume: `postgres_data`
+  - Image size: ~103 MB, RAM usage: ~100-200 MB idle
+- ✅ **Database Connection**: Tested and verified working
+  - Created `src/lib/db.ts` - Prisma client singleton
+  - CRUD operations verified (Create, Read, Delete)
+  - JSONB fields storing data correctly
+- ✅ **NPM Scripts**: Added database management scripts
+  - `npm run db:studio` - Open Prisma Studio UI
+  - `npm run db:migrate` - Run migrations
+  - `npm run db:push` - Push schema changes
+  - `npm run db:generate` - Generate Prisma Client
+
 ### 🚧 Pending Work
 
-**Phase 2: Backend & Database Setup** (Next Priority)
-1. Setup Prisma with PostgreSQL connection
-2. Create database schema with games table (JSONB + preprocessed fields)
-3. Setup Docker Compose for local PostgreSQL
+**Phase 2: Backend & Database Setup** (Remaining Tasks)
 4. Implement BGA API client for authentication and data fetching
 5. Build game JSON parser to extract searchable fields
 
@@ -199,9 +261,12 @@ npx prisma studio
 ## Deployment
 
 ### Local (Testing)
-- Run PostgreSQL: `docker-compose up -d` (not yet created)
+- **Prerequisites**: Docker Desktop installed and running
+- Run PostgreSQL: `docker-compose up -d`
+- Run migrations: `npm run db:migrate` (first time only)
 - Start app: `npm run dev`
 - Access at: `http://localhost:3000`
+- View database: `npm run db:studio` (opens at `http://localhost:5555`)
 
 ### Production (Vercel - Recommended)
 - Deploy Next.js to Vercel (free tier)
