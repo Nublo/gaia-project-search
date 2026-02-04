@@ -1,4 +1,4 @@
-import { BGAConfig, LoginResponse, BGASession, GetPlayerFinishedGamesResponse } from './bga-types';
+import { BGAConfig, LoginResponse, BGASession, GetPlayerFinishedGamesResponse, GetGameLogResponse } from './bga-types';
 
 export class BGAClient {
   private session: BGASession;
@@ -263,6 +263,62 @@ export class BGAClient {
       return gamesResponse;
     } catch (error) {
       console.error('[BGAClient] Failed to fetch finished games:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch detailed game log for a specific game table
+   *
+   * @param tableId - BGA table ID (from GameTableInfo.table_id)
+   * @param translated - Whether to get translated logs (default: true)
+   * @returns Response containing detailed game log entries
+   *
+   * @example
+   * const log = await client.getGameLog('798145204');
+   * console.log(`Fetched ${log.data.logs.length} log entries`);
+   */
+  async getGameLog(tableId: string, translated: boolean = true): Promise<GetGameLogResponse> {
+    if (!this.isLoggedIn()) {
+      throw new Error('Not logged in. Call login() first.');
+    }
+
+    console.log(`[BGAClient] Fetching game log for table_id=${tableId}`);
+
+    try {
+      // Build query parameters
+      const params = new URLSearchParams({
+        table: tableId,
+        translated: translated.toString(),
+        'dojo.preventCache': Date.now().toString(),
+      });
+
+      const url = `${this.baseUrl}/archive/archive/logs.html?${params.toString()}`;
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:146.0) Gecko/20100101 Firefox/146.0',
+          Accept: '*/*',
+          'Accept-Language': 'en-GB,en;q=0.5',
+          'X-Request-Token': this.session.requestToken,
+          Referer: `${this.baseUrl}/gamereview?table=${tableId}`,
+          Cookie: this.getCookieHeader(),
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch game log: ${response.status} ${response.statusText}`);
+      }
+
+      const logResponse: GetGameLogResponse = await response.json();
+
+      console.log(`[BGAClient] Successfully fetched game log`);
+
+      return logResponse;
+    } catch (error) {
+      console.error('[BGAClient] Failed to fetch game log:', error);
       throw error;
     }
   }

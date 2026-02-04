@@ -79,3 +79,11 @@ export interface GameTableInfo {
   arena_win: string | null; // Arena points won
   arena_after: string | null; // Arena points after game
 }
+
+export interface GetGameLogResponse {
+  status: number;
+  data: {
+    logs: any[]; // Array of log entries (structure TBD)
+    [key: string]: any; // Other fields we'll discover
+  };
+}
