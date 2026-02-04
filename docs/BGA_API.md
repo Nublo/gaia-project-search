@@ -16,7 +16,7 @@ await client.login(username, password); // Authenticate
 
 ### `getPlayerFinishedGames(playerId, gameId, page)`
 
-Fetches finished games for a specific player.
+Fetches a list of finished games for a specific player.
 
 **Parameters:**
 - `playerId: number` - BGA player ID
@@ -42,6 +42,56 @@ response.data.tables.forEach(game => {
   console.log(`  Players: ${game.player_names}`);
   console.log(`  Scores: ${game.scores}`);
   console.log(`  Date: ${new Date(parseInt(game.start) * 1000)}`);
+});
+```
+
+### `getGameLog(tableId, translated?)`
+
+Fetches detailed game log for a specific game table.
+
+**Parameters:**
+- `tableId: string` - BGA table ID (from `GameTableInfo.table_id`)
+- `translated: boolean` - Whether to get translated logs (default: true)
+
+**Returns:** `GetGameLogResponse`
+- Contains chronological log of all game events
+- Includes player actions, state changes, and game metadata
+- See [GAME_LOG_STRUCTURE.md](./GAME_LOG_STRUCTURE.md) for detailed structure
+
+**Example:**
+```typescript
+const tableId = "798145204";
+
+const logResponse = await client.getGameLog(tableId);
+console.log(`Fetched ${logResponse.data.logs.length} log packets`);
+
+// Access log entries
+logResponse.data.logs.forEach(packet => {
+  console.log(`Packet ${packet.packet_id} at ${new Date(parseInt(packet.time) * 1000)}`);
+  packet.data.forEach(event => {
+    console.log(`  Event type: ${event.type}`);
+  });
+});
+```
+
+**Use with Parser:**
+```typescript
+import { GameLogParser } from './src/lib/game-parser';
+
+// Fetch game list
+const games = await client.getPlayerFinishedGames(playerId, 1495, 1);
+const game = games.data.tables[0];
+
+// Fetch detailed log
+const log = await client.getGameLog(game.table_id);
+
+// Parse the log
+const parsed = GameLogParser.parseGameLog(game, log);
+
+console.log(`Winner: ${parsed.winnerName}`);
+console.log(`Players: ${parsed.players.length}`);
+parsed.players.forEach(player => {
+  console.log(`  ${player.playerName} - ${player.raceName}: ${player.finalScore} pts`);
 });
 ```
 
@@ -86,6 +136,33 @@ Each game table contains:
 }
 ```
 
+### GetGameLogResponse
+
+```typescript
+{
+  status: 1, // 1 = success, 0 = error
+  data: {
+    logs: LogPacket[],  // Array of log packets (chronological events)
+    players: PlayerInfo[] // Array of player information
+  }
+}
+```
+
+**LogPacket Structure:**
+```typescript
+{
+  channel: string;
+  table_id: number;
+  packet_id: string;
+  packet_type: string;
+  move_id: string;
+  time: string;  // Unix timestamp
+  data: Event[]  // Array of events in this packet
+}
+```
+
+For detailed information about log structure and event types, see [GAME_LOG_STRUCTURE.md](./GAME_LOG_STRUCTURE.md).
+
 ## Pagination Strategy
 
 The BGA API uses page-based pagination:
@@ -126,7 +203,7 @@ The BGA API requires:
 2. Include session cookies in API requests
 3. Include `X-Request-Token` header
 
-This is handled automatically by the `getPlayerFinishedGames()` method.
+This is handled automatically by both `getPlayerFinishedGames()` and `getGameLog()` methods.
 
 ### Parameters Sent to BGA API
 
@@ -139,9 +216,14 @@ The method sends these parameters to BGA:
 - `updateStats` - "0" (don't include stats for performance)
 - `dojo.preventCache` - Timestamp for cache busting
 
+## Related Documentation
+
+- [GAME_LOG_STRUCTURE.md](./GAME_LOG_STRUCTURE.md) - Detailed structure of game logs and parsing strategy
+- See `src/lib/game-parser.ts` - Parser implementation that extracts searchable data from logs
+
 ## Future Enhancements
 
 Potential additions to the API:
-- `getGameLog(tableId)` - Fetch detailed game log/replay data
-- `getPlayerStats(playerId, gameId)` - Get player statistics
-- `getGameDetails(tableId)` - Get detailed game information
+- `getPlayerStats(playerId, gameId)` - Get aggregated player statistics
+- `getLeaderboard(gameId)` - Get game leaderboard
+- Additional game-specific endpoints as needed

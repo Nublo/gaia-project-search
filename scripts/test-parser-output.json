@@ -1,0 +1,92 @@
+{
+  "tableId": "801274027",
+  "gameId": 1495,
+  "gameName": "gaiaproject",
+  "playerCount": 2,
+  "players": [
+    {
+      "playerId": 89923063,
+      "playerName": "felipetoito",
+      "raceId": 4,
+      "raceName": "Gleens",
+      "finalScore": 155,
+      "buildings": [
+        [
+          5,
+          6,
+          7
+        ],
+        [
+          5,
+          6
+        ],
+        [
+          4,
+          4
+        ],
+        [
+          4,
+          5
+        ],
+        [
+          4,
+          4,
+          4
+        ],
+        [
+          4,
+          8,
+          6,
+          4,
+          5,
+          6,
+          5
+        ]
+      ]
+    },
+    {
+      "playerId": 96457033,
+      "playerName": "AlabeSons",
+      "raceId": 10,
+      "raceName": "Bal T'aks",
+      "finalScore": 206,
+      "buildings": [
+        [
+          5,
+          4,
+          4,
+          6
+        ],
+        [
+          4,
+          4
+        ],
+        [
+          7,
+          4,
+          5
+        ],
+        [
+          4,
+          4
+        ],
+        [
+          4,
+          5,
+          4,
+          5,
+          4,
+          5,
+          4
+        ],
+        [
+          6,
+          5,
+          4,
+          6
+        ]
+      ]
+    }
+  ],
+  "winnerName": "AlabeSons"
+}

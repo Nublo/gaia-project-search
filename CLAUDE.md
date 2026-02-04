@@ -198,7 +198,7 @@ npm run db:generate   # Generate Prisma Client
 - Responsive layout with Tailwind CSS
 - Form reset functionality
 
-**Phase 2: Backend & Database Setup** (Partially Complete)
+**Phase 2: Backend & Database Setup** (✅ COMPLETE)
 - ✅ **Prisma Setup**: Installed `@prisma/client` and `prisma` packages
 - ✅ **Database Schema**: Created `prisma/schema.prisma` with Game model
   - Fields: `id`, `game_id` (unique), `game_log` (JSONB), searchable fields, timestamps
@@ -218,40 +218,55 @@ npm run db:generate   # Generate Prisma Client
   - `npm run db:migrate` - Run migrations
   - `npm run db:push` - Push schema changes
   - `npm run db:generate` - Generate Prisma Client
-- ✅ **BGA API Client Authentication**: Implemented login and session management
+- ✅ **BGA API Client**: Full implementation with authentication and data fetching
+  - **Authentication**: `initialize()` and `login()` methods
+    - Automatic request token extraction from BGA homepage
+    - Session-based authentication with cookie management
+    - Stores session cookies: `TournoiEnLigneidt`, `TournoiEnLignetkt`, `PHPSESSID`
+  - **Data Fetching**: Two main API methods
+    - `getPlayerFinishedGames(playerId, gameId, page)` - Fetch list of games (10 per page)
+    - `getGameLog(tableId, translated)` - Fetch detailed game log with all events
   - Created `src/lib/bga-client.ts` - BGA API client class
   - Created `src/lib/bga-types.ts` - TypeScript type definitions
-  - Automatic request token extraction from BGA homepage
-  - Session-based authentication with cookie management
-  - Login flow tested and verified working
-  - Created `.env.example` for credentials configuration
+- ✅ **Game Log Parser**: Extracts searchable fields from game logs
+  - Created `src/lib/game-parser.ts` - Main parser implementation
+  - Created `src/lib/gaia-constants.ts` - Race/building/event type mappings
+  - **Extracts**: Player races, final scores, winner, building actions by round
+  - **Output Structure**: Compact JSON with players array containing all data
+  - **Building Data**: Stored as 2D array `buildings[round][buildingIndex]` with only IDs
+  - Complete race ID mapping (1-14: Terrans, Lantids, Xenos, etc.)
+  - Complete building ID mapping (4-9: Mine, Trading Station, Research Lab, etc.)
+  - Handles event types: `notifyChooseRace`, `notifyBuild`, `notifyUpgrade`, `notifyRoundEnd`
+- ✅ **Documentation**:
+  - `docs/BGA_API.md` - Complete API reference with examples
+  - `docs/GAME_LOG_STRUCTURE.md` - Detailed log structure and parsing strategy
+  - Test scripts in `scripts/` directory for verification
 
-**BGA Authentication Flow:**
-1. `initialize()` - Fetches homepage and extracts request token from `bgaConfig`
-2. `login()` - Authenticates with username/password
-3. Stores session cookies: `TournoiEnLigneidt`, `TournoiEnLignetkt`, `PHPSESSID`
-4. Provides `isLoggedIn()` and `getSession()` helpers
+**BGA API Flow:**
+1. `initialize()` - Fetches homepage and extracts request token
+2. `login(username, password)` - Authenticates with credentials
+3. `getPlayerFinishedGames(playerId, gameId, page)` - Fetch game list (paginated)
+4. `getGameLog(tableId)` - Fetch detailed log for specific game
+5. `GameLogParser.parseGameLog(gameTable, log)` - Parse log into searchable data
 
 ### 🚧 Pending Work
 
-**Phase 2: Backend & Database Setup** (Remaining Tasks)
-5. Build game JSON parser to extract searchable fields
-6. Implement game data fetching methods (getPlayerGames, getTableInfo, getGameLog)
-
 **Phase 3: Search Functionality**
-6. Create search API endpoint that uses multiple conditions
-7. Integrate search API with frontend UI
-8. Replace mock data with real database queries
+1. Create search API endpoint that uses multiple conditions
+2. Integrate search API with frontend UI
+3. Replace mock data with real database queries
 
 **Phase 4: Data Collection**
-9. Create data collection API endpoints
-10. Implement background job system for periodic data fetching
-11. Build admin interface for triggering data collection
+1. Create data collection API endpoints
+   - `/api/collect/player-games` - Collect and parse games for a player
+   - Store parsed data in PostgreSQL
+2. Implement pagination logic to avoid fetching duplicate games
+3. Build admin interface for triggering data collection
 
 **Phase 5: Production Deployment**
-12. Create Dockerfile for production
-13. Test end-to-end workflow
-14. Deploy to Vercel with PostgreSQL database
+1. Create Dockerfile for production
+2. Test end-to-end workflow (collect → store → search)
+3. Deploy to Vercel with PostgreSQL database
 
 ### Important Implementation Notes
 
@@ -270,6 +285,29 @@ npm run db:generate   # Generate Prisma Client
 - Combines Race + Structure + Built in Round (max) into one condition
 - Can add conditions with just race, just structure, or any combination
 - Displays as chips: "Terrans: Mine (round ≤ 3)"
+
+**Parsed Game Data Structure**:
+```typescript
+{
+  tableId: string;          // BGA game table ID
+  gameId: number;           // Game type (1495 for Gaia Project)
+  gameName: string;         // "gaiaproject"
+  playerCount: number;      // Number of players
+  winnerName: string;       // Name of winning player
+  players: [
+    {
+      playerId: number;
+      playerName: string;
+      raceId: number;       // 1-14 (Terrans, Lantids, Xenos, etc.)
+      raceName: string;
+      finalScore: number;
+      buildings: number[][]; // buildings[round] = [buildingId1, buildingId2, ...]
+                            // buildingId: 4=Mine, 5=Trading Station, 6=Research Lab,
+                            //             7=Academy(Knowledge), 8=Academy(QIC), 9=PI
+    }
+  ]
+}
+```
 
 ## Deployment
 

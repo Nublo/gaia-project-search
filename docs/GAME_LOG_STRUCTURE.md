@@ -1,6 +1,6 @@
 # Game Log Structure
 
-This document describes the structure of BGA game logs returned by the `getGameLog()` API.
+This document describes the structure of BGA game logs returned by the `getGameLog()` API and how we parse them.
 
 ## Response Structure
 
@@ -11,6 +11,30 @@ This document describes the structure of BGA game logs returned by the `getGameL
     logs: [...],      // Array of log packets (chronological game events)
     players: [...]    // Array of player info
   }
+}
+```
+
+## Parsed Output Structure
+
+Our parser extracts and organizes the data into a compact structure:
+
+```typescript
+{
+  tableId: string;
+  gameId: number;
+  gameName: string;
+  playerCount: number;
+  winnerName: string;
+  players: [
+    {
+      playerId: number;
+      playerName: string;
+      raceId: number;
+      raceName: string;
+      finalScore: number;
+      buildings: number[][]; // buildings[round] = [buildingId1, buildingId2, ...]
+    }
+  ];
 }
 ```
 
@@ -141,18 +165,95 @@ Various game actions and messages:
 }
 ```
 
-### 5. Building Actions
+### 5. **notifyBuild** - Building Mines
 
-Building actions are likely in `notifyGeneric` or similar events. Need to search for patterns like:
-- Building mines
-- Upgrading to trading stations
-- Building research labs
-- etc.
+When a player builds a mine (building ID 4):
 
-### 6. End Game
+```typescript
+{
+  type: "notifyBuild",
+  args: {
+    playerId: "96457033",
+    player_name: "AlabeSons"
+    // Building is always a mine (ID 4)
+  }
+}
+```
 
-Final event marking game end:
+### 6. **notifyUpgrade** - Building/Upgrading Structures
 
+When a player builds or upgrades to other structures:
+
+```typescript
+{
+  type: "notifyUpgrade",
+  args: {
+    playerId: "96457033",
+    player_name: "AlabeSons",
+    buildingId: 5  // The building type (5-9)
+  }
+}
+```
+
+**Building IDs:**
+- 4 = Mine
+- 5 = Trading Station
+- 6 = Research Lab
+- 7 = Academy (Knowledge)
+- 8 = Academy (QIC)
+- 9 = Planetary Institute
+
+### 7. **notifyRoundEnd** - Round Tracking
+
+Marks the end of a game round:
+
+```typescript
+{
+  type: "notifyRoundEnd",
+  args: {
+    // Round end information
+  }
+}
+```
+
+We track the current round counter by counting these events.
+
+### 8. End Game
+
+The game end sequence contains two events:
+
+**Game State with Final Scores:**
+```typescript
+{
+  type: "gameStateChange",
+  args: {
+    id: 99,
+    args: {
+      result: [  // ← Note: Field is "result", not "allPlayersScores"
+        {
+          id: "96457033",
+          player: "96457033",
+          name: "AlabeSons",
+          score: "175",      // Final score!
+          rank: 1,
+          color: "...",
+          // ... other fields
+        },
+        {
+          id: "89923063",
+          player: "89923063",
+          name: "felipetoito",
+          score: "166",
+          rank: 2,
+          // ...
+        }
+      ]
+    }
+  }
+}
+```
+
+**End Game Marker:**
 ```typescript
 {
   type: "simpleNode",
@@ -161,76 +262,105 @@ Final event marking game end:
 }
 ```
 
-Before this, there's a game state with final scores:
-
-```typescript
-{
-  type: "gameStateChange",
-  args: {
-    name: "gameEnd",
-    description: "End of game",
-    args: {
-      allPlayersScores: [
-        {
-          id: "96457033",
-          player: "96457033",
-          name: "AlabeSons",
-          score: "175",      // Final score!
-          rank: 1
-        },
-        {
-          id: "89923063",
-          player: "89923063",
-          name: "felipetoito",
-          score: "166",
-          rank: 2
-        }
-      ]
-    }
-  }
-}
-```
-
 ## Parsing Strategy
 
-To extract searchable data:
+Our parser processes events in chronological order:
 
-1. **Find Race Selection:**
-   - Search for events with `type: "notifyChooseRace"`
-   - Extract `args.raceId` and `args.playerId`
-   - Map player ID to race
+### 1. Track Rounds
+- Count `notifyRoundEnd` events to track current round number
+- Start at round 0 (setup phase)
 
-2. **Find Building Actions:**
-   - Search through all `notifyGeneric` and other event types
-   - Look for log messages containing building keywords
-   - Extract round number from packet sequence
+### 2. Parse Race Selection
+- Search for `type: "notifyChooseRace"` events
+- Extract `args.raceId` and `args.playerId`
+- Initialize player with empty buildings array
 
-3. **Find Final Scores:**
-   - Look for final `gameStateChange` with `name: "gameEnd"`
-   - Extract scores from `args.allPlayersScores`
+### 3. Parse Building Actions
+- **Mines:** Watch for `type: "notifyBuild"` → building ID 4
+- **Other structures:** Watch for `type: "notifyUpgrade"` → extract `args.buildingId`
+- Group buildings by player and round: `player.buildings[currentRound].push(buildingId)`
 
-4. **Calculate Rounds:**
-   - Count round transitions in game states
-   - Track which packet/move corresponds to which round
+### 4. Parse Final Scores
+- Look for `gameStateChange` event with `args.args.result` array
+- Extract `score` for each player
+- Determine winner (player with highest score)
+
+### 5. Output Compact Structure
+- Players array contains all data (race, score, buildings)
+- Buildings stored as 2D array: `buildings[round][buildingIndex]`
+- Only building IDs stored (no names or duplicate data)
 
 ## Race ID Mapping
 
-Need to determine race ID to race name mapping. From the example:
-- Race ID 3 = ? (AlabeSons chose this)
-- Race ID 9 = ? (felipetoito chose this)
-- Race ID 2 = Banned
-- Race ID 8 = Banned
+Complete mapping of race IDs to race names:
 
-**TODO:** Create complete race ID mapping for all 14 Gaia Project races.
+| ID | Race Name |
+|----|-----------|
+| 1 | Terrans |
+| 2 | Lantids |
+| 3 | Xenos |
+| 4 | Gleens |
+| 5 | Taklons |
+| 6 | Ambas |
+| 7 | Hadsch Hallas |
+| 8 | Ivits |
+| 9 | Geodens |
+| 10 | Bal T'aks |
+| 11 | Firacs |
+| 12 | Bescods |
+| 13 | Nevlas |
+| 14 | Itars |
 
-## Next Steps
+## Example Parsed Output
 
-1. Build a parser to extract:
-   - Player race mapping
-   - Building actions with round numbers
-   - Final scores
-   - Game metadata
+```json
+{
+  "tableId": "798145204",
+  "gameId": 1495,
+  "gameName": "gaiaproject",
+  "playerCount": 2,
+  "winnerName": "AlabeSons",
+  "players": [
+    {
+      "playerId": 96457033,
+      "playerName": "AlabeSons",
+      "raceId": 3,
+      "raceName": "Xenos",
+      "finalScore": 175,
+      "buildings": [
+        [5, 6],      // Round 0: Trading Station, Research Lab
+        [7],         // Round 1: Academy (Knowledge)
+        [5],         // Round 2: Trading Station
+        [5, 9, 6],   // Round 3: Trading Station, PI, Research Lab
+        [5, 6],      // Round 4: Trading Station, Research Lab
+        [5, 6]       // Round 5: Trading Station, Research Lab
+      ]
+    },
+    {
+      "playerId": 89923063,
+      "playerName": "felipetoito",
+      "raceId": 9,
+      "raceName": "Geodens",
+      "finalScore": 166,
+      "buildings": [
+        [5, 9],      // Round 0: Trading Station, PI
+        [5],         // Round 1: Trading Station
+        [6],         // Round 2: Research Lab
+        [7],         // Round 3: Academy (Knowledge)
+        [5, 6],      // Round 4: Trading Station, Research Lab
+        [8, 5, 6]    // Round 5: Academy (QIC), Trading Station, Research Lab
+      ]
+    }
+  ]
+}
+```
 
-2. Create helper functions to traverse log events efficiently
+## Key Event Types Used
 
-3. Map extracted data to our database schema fields
+Our parser uses these event types:
+
+- `notifyChooseRace` - Player race selection
+- `notifyBuild` - Building mines (ID 4)
+- `notifyUpgrade` - Building/upgrading other structures (IDs 5-9)
+- `notifyRoundEnd` - Round boundaries
+- `gameStateChange` (with `args.args.result`) - Final scores
