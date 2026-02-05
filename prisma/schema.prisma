@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,63 +7,36 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ============================================================================
-// GAME MODEL - One row per game
-// ============================================================================
 model Game {
   id           String   @id @default(cuid())
-  tableId      Int      @unique @map("table_id") // BGA table ID (unique per game instance)
-  gameId       String   @default("1495") @map("game_id") // BGA game type ID (1495 = Gaia Project)
+  tableId      Int      @unique @map("table_id")
+  gameId       String   @default("1495") @map("game_id")
   gameName     String   @default("gaiaproject") @map("game_name")
-
-  // Game metadata
   playerCount  Int      @map("player_count")
   winnerName   String   @map("winner_name")
   minPlayerElo Int?     @map("min_player_elo")
-
-  // Raw data preservation
   rawGameLog   Json     @map("raw_game_log")
-
-  // Relations
   players      Player[]
 
-  // Indexes for game-level searches
   @@index([winnerName])
   @@index([playerCount])
   @@index([minPlayerElo])
-
   @@map("games")
 }
 
-// ============================================================================
-// PLAYER MODEL - One row per player per game
-// ============================================================================
 model Player {
-  id           String   @id @default(cuid())
-
-  // Foreign key to game
-  tableId      String   @map("table_id")
-  game         Game     @relation(fields: [tableId], references: [id], onDelete: Cascade)
-
-  // Player identification
-  playerId     Int      @map("player_id")
-  playerName   String   @map("player_name")
-
-  // Race information
-  raceId       Int      @map("race_id")
-  raceName     String   @map("race_name")
-
-  // Game performance
-  finalScore   Int      @map("final_score")
-  playerElo    Int?     @map("player_elo")
-  isWinner     Boolean  @default(false) @map("is_winner")
-
-  // Buildings data (JSONB)
-  // Structure: {"buildings": [[4,5], [6], [7,5], ...]}
-  // buildings[round] = [buildingId1, buildingId2, ...]
+  id            String  @id @default(cuid())
+  tableId       Int     @map("table_id")
+  playerId      Int     @map("player_id")
+  playerName    String  @map("player_name")
+  raceId        Int     @map("race_id")
+  raceName      String  @map("race_name")
+  finalScore    Int     @map("final_score")
+  playerElo     Int?    @map("player_elo")
+  isWinner      Boolean @default(false) @map("is_winner")
   buildingsData Json    @map("buildings_data")
+  game          Game    @relation(fields: [tableId], references: [tableId], onDelete: Cascade)
 
-  // Indexes for player-level searches
   @@index([playerName])
   @@index([raceId])
   @@index([raceName])
@@ -77,11 +44,9 @@ model Player {
   @@index([playerElo])
   @@index([tableId])
   @@index([isWinner])
-
-  // Composite indexes for common query patterns
   @@index([raceId, finalScore])
   @@index([tableId, raceId])
   @@index([playerElo, finalScore])
-
+  @@index([buildingsData], map: "players_buildings_data_gin_idx", type: Gin)
   @@map("players")
 }

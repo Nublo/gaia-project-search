@@ -8,20 +8,29 @@ import { ParsedGameData } from './game-parser';
  * @returns The created game with all players
  */
 export async function storeGame(parsedGame: ParsedGameData) {
-  // Create game and players in a transaction
-  const game = await prisma.game.create({
-    data: {
-      tableId: parseInt(parsedGame.tableId),
-      gameId: parsedGame.gameId.toString(),
-      gameName: parsedGame.gameName,
-      playerCount: parsedGame.playerCount,
-      winnerName: parsedGame.winnerName,
-      minPlayerElo: parsedGame.minPlayerElo,
-      rawGameLog: parsedGame as any,
+  const tableId = parseInt(parsedGame.tableId);
 
-      players: {
-        create: parsedGame.players.map((player) => {
-          return {
+  // Create game and players in a transaction
+  const result = await prisma.$transaction(async (tx) => {
+    // First, create the game
+    const game = await tx.game.create({
+      data: {
+        tableId,
+        gameId: parsedGame.gameId.toString(),
+        gameName: parsedGame.gameName,
+        playerCount: parsedGame.playerCount,
+        winnerName: parsedGame.winnerName,
+        minPlayerElo: parsedGame.minPlayerElo,
+        rawGameLog: parsedGame as any,
+      }
+    });
+
+    // Then, create all players with explicit tableId
+    const players = await Promise.all(
+      parsedGame.players.map((player) =>
+        tx.player.create({
+          data: {
+            tableId,
             playerId: player.playerId,
             playerName: player.playerName,
             raceId: player.raceId,
@@ -32,16 +41,15 @@ export async function storeGame(parsedGame: ParsedGameData) {
             buildingsData: {
               buildings: player.buildings
             }
-          };
+          }
         })
-      }
-    },
-    include: {
-      players: true
-    }
+      )
+    );
+
+    return { ...game, players };
   });
 
-  return game;
+  return result;
 }
 
 /**

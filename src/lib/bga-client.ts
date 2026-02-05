@@ -1,4 +1,4 @@
-import { BGAConfig, LoginResponse, BGASession, GetPlayerFinishedGamesResponse, GetGameLogResponse, GetTableInfoResponse } from './bga-types';
+import { BGAConfig, LoginResponse, BGASession, GetPlayerFinishedGamesResponse, GetGameLogResponse, GetTableInfoResponse, GetRankingResponse, SearchPlayerResponse } from './bga-types';
 
 export class BGAClient {
   private session: BGASession;
@@ -32,7 +32,7 @@ export class BGAClient {
         throw new Error(`Failed to fetch homepage: ${response.status} ${response.statusText}`);
       }
 
-      // Store cookies from initial response
+      // Store initial cookies from homepage
       this.storeCookiesFromResponse(response);
 
       // Parse HTML to extract bgaConfig.requestToken
@@ -91,7 +91,7 @@ export class BGAClient {
         throw new Error(`Login request failed: ${response.status} ${response.statusText}`);
       }
 
-      // Store new cookies from login response
+      // Store session cookies from login response
       this.storeCookiesFromResponse(response);
 
       const loginResponse: LoginResponse = await response.json();
@@ -175,6 +175,7 @@ export class BGAClient {
   isLoggedIn(): boolean {
     return !!this.session.userId && this.session.cookies.has('TournoiEnLigneidt');
   }
+
 
   /**
    * Fetch finished games for a specific player
@@ -286,6 +287,31 @@ export class BGAClient {
     console.log(`[BGAClient] Fetching game log for table_id=${tableId}`);
 
     try {
+      // First, visit the gamereview page to establish session for this game
+      const gamereviewUrl = `${this.baseUrl}/gamereview?table=${tableId}`;
+
+      const pageResponse = await fetch(gamereviewUrl, {
+        method: 'GET',
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:146.0) Gecko/20100101 Firefox/146.0',
+          Accept:
+            'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-GB,en;q=0.5',
+          Cookie: this.getCookieHeader(),
+        },
+      });
+
+      if (!pageResponse.ok) {
+        console.log(`[BGAClient] Warning: Failed to visit gamereview page: ${pageResponse.status}`);
+      }
+
+      // Store any new cookies from the page visit
+      this.storeCookiesFromResponse(pageResponse);
+
+      // Small delay to let session establish
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
       // Build query parameters
       const params = new URLSearchParams({
         table: tableId,
@@ -295,6 +321,10 @@ export class BGAClient {
 
       const url = `${this.baseUrl}/archive/archive/logs.html?${params.toString()}`;
 
+      const cookieHeader = this.getCookieHeader();
+      console.log(`[BGAClient] DEBUG: Cookies being sent for game ${tableId}:`);
+      console.log(`  ${cookieHeader.substring(0, 200)}...`);
+
       const response = await fetch(url, {
         method: 'GET',
         headers: {
@@ -303,16 +333,27 @@ export class BGAClient {
           Accept: '*/*',
           'Accept-Language': 'en-GB,en;q=0.5',
           'X-Request-Token': this.session.requestToken,
+          'X-Requested-With': 'XMLHttpRequest',
           Referer: `${this.baseUrl}/gamereview?table=${tableId}`,
           Cookie: this.getCookieHeader(),
         },
       });
 
       if (!response.ok) {
+        console.log(response);
         throw new Error(`Failed to fetch game log: ${response.status} ${response.statusText}`);
       }
 
+      // Store cookies to keep session alive
+      this.storeCookiesFromResponse(response);
+
       const logResponse: GetGameLogResponse = await response.json();
+
+      // Check if BGA returned an error (status: "0" or status: 0)
+      if (logResponse.status === 0 || logResponse.status === '0' as any) {
+        const errorMsg = (logResponse as any).error || 'Unknown error';
+        throw new Error(`BGA API error: ${errorMsg}`);
+      }
 
       console.log(`[BGAClient] Successfully fetched game log`);
 
@@ -357,6 +398,7 @@ export class BGAClient {
           Accept: '*/*',
           'Accept-Language': 'en-GB,en;q=0.5',
           'X-Request-Token': this.session.requestToken,
+          'X-Requested-With': 'XMLHttpRequest',
           Referer: `${this.baseUrl}/gamereview?table=${tableId}`,
           Cookie: this.getCookieHeader(),
         },
@@ -365,6 +407,9 @@ export class BGAClient {
       if (!response.ok) {
         throw new Error(`Failed to fetch table info: ${response.status} ${response.statusText}`);
       }
+
+      // Store cookies to keep session alive
+      this.storeCookiesFromResponse(response);
 
       const tableInfoResponse = await response.json();
 
@@ -375,5 +420,107 @@ export class BGAClient {
       console.error('[BGAClient] Failed to fetch table info:', error);
       throw error;
     }
+  }
+
+  /**
+   * Fetch player rankings for a specific game
+   *
+   * @param gameId - BGA game ID (e.g., 1495 for Gaia Project)
+   * @param start - Starting position in rankings (0-based, default: 0)
+   * @param mode - Ranking mode ('elo' for ELO rankings, default: 'elo')
+   * @returns Response containing ranked players list
+   *
+   * @example
+   * const rankings = await client.getRanking(1495, 0, 'elo');
+   * console.log('Top 10 players:', rankings.data.players.slice(0, 10));
+   */
+  async getRanking(gameId: number, start: number = 0, mode: string = 'elo'): Promise<GetRankingResponse> {
+    if (!this.isLoggedIn()) {
+      throw new Error('Not logged in. Call login() first.');
+    }
+
+    console.log(`[BGAClient] Fetching rankings for game_id=${gameId}, start=${start}, mode=${mode}`);
+
+    const params = new URLSearchParams({
+      game: gameId.toString(),
+      start: start.toString(),
+      mode: mode,
+    });
+
+    const url = `${this.baseUrl}/gamepanel/gamepanel/getRanking.html`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:146.0) Gecko/20100101 Firefox/146.0',
+        Accept: '*/*',
+        'Accept-Language': 'en-GB,en;q=0.5',
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'X-Request-Token': this.session.requestToken,
+        Cookie: this.getCookieHeader(),
+      },
+      body: params.toString(),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch ranking: ${response.status} ${response.statusText}`);
+    }
+
+    // Store cookies to keep session alive
+    this.storeCookiesFromResponse(response);
+
+    const rankingResponse = await response.json();
+    console.log(`[BGAClient] Successfully fetched ranking data`);
+
+    return rankingResponse;
+  }
+
+  /**
+   * Search for a player by name using BGA omnibar search
+   *
+   * @param query - Player name to search for
+   * @returns Response containing matching players
+   *
+   * @example
+   * const searchResults = await client.searchPlayer('AlabeSons');
+   * if (searchResults.data.players.length > 0) {
+   *   console.log('Found player:', searchResults.data.players[0]);
+   * }
+   */
+  async searchPlayer(query: string): Promise<SearchPlayerResponse> {
+    if (!this.isLoggedIn()) {
+      throw new Error('Not logged in. Call login() first.');
+    }
+
+    console.log(`[BGAClient] Searching for player: ${query}`);
+
+    const params = new URLSearchParams({
+      query: query,
+    });
+
+    const url = `${this.baseUrl}/omnibar/omnibar/search.html?${params.toString()}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:146.0) Gecko/20100101 Firefox/146.0',
+        Accept: '*/*',
+        'Accept-Language': 'en-GB,en;q=0.5',
+        'X-Request-Token': this.session.requestToken,
+        Cookie: this.getCookieHeader(),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to search player: ${response.status} ${response.statusText}`);
+    }
+
+    // Store cookies to keep session alive
+    this.storeCookiesFromResponse(response);
+
+    const searchResponse = await response.json();
+    console.log(`[BGAClient] Found ${searchResponse.data.players.length} players matching "${query}"`);
+
+    return searchResponse;
   }
 }

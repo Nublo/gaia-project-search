@@ -54,6 +54,14 @@ export class GameLogParser {
     logResponse: GetGameLogResponse,
     tableInfo: GetTableInfoResponse
   ): ParsedGameData {
+    // Validate log response structure
+    if (!logResponse.data || !logResponse.data.logs) {
+      throw new Error(
+        `Invalid game log response structure for table ${gameTable.table_id}. ` +
+        `Expected logResponse.data.logs but got: ${JSON.stringify(logResponse).substring(0, 200)}`
+      );
+    }
+
     const logs = logResponse.data.logs;
     const players: PlayerRaceMapping[] = [];
 

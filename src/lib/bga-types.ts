@@ -140,3 +140,51 @@ export interface GetTableInfoResponse {
     [key: string]: any; // Other fields
   };
 }
+
+export interface RankingPlayer {
+  id: string; // Player ID
+  name: string; // Player display name
+  country: {
+    name: string;
+    cur: string;
+    code: string;
+    flag_x: number;
+    flag_y: number;
+  };
+  ranking: string; // ELO rating
+  nbr_game: string; // Number of games played
+  rank_no: string; // Rank position (1 = first place)
+  avatar: string;
+  device: string; // "desktop" or "mobile"
+  status: string; // "online" or "offline"
+}
+
+export interface GetRankingResponse {
+  status: number;
+  data: {
+    ranks: RankingPlayer[]; // Array of ranked players
+  };
+}
+
+export interface SearchPlayerResult {
+  id: number; // Player ID
+  avatar: string;
+  fullname: string; // Player display name
+  country_infos: {
+    name: string;
+    cur: string;
+    code: string;
+    flag_x: number;
+    flag_y: number;
+  };
+  outbound_friend_request: string | null;
+  inbound_friend_request: string | null;
+}
+
+export interface SearchPlayerResponse {
+  status: number;
+  data: {
+    groups: any[];
+    players: SearchPlayerResult[];
+  };
+}

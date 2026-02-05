@@ -230,10 +230,12 @@ npm run db:generate   # Generate Prisma Client
 - ✅ **Database Schema**: Two-table normalized design
   - **Games table**: One row per game with metadata
   - **Players table**: One row per player per game (4-player game = 4 rows)
-  - Migration: `20260205121225_redesign_schema_two_tables` applied successfully
+  - Migration: `20260205132437_init_schema` - Initial schema creation
+  - Migration: `20260205193359_fix_player_table_id_foreign_key` - Fixed Player.tableId to Int referencing Game.tableId
   - **17 indexes total**: 5 on games, 12 on players (including GIN index for JSONB)
   - Removed unused fields: roundCount, gameDate, createdAt, updatedAt
   - Added: `minPlayerElo` for fast skill-level filtering
+  - **Foreign Key**: Player.tableId (Int) → Game.tableId (Int) for proper BGA table ID references
 - ✅ **Docker Compose**: Created `docker-compose.yml` with PostgreSQL 16 Alpine
   - Container: `bga_gaia_postgres`
   - Database: `bga_gaia_db` (user: `bga_user`)
@@ -253,9 +255,12 @@ npm run db:generate   # Generate Prisma Client
     - Automatic request token extraction from BGA homepage
     - Session-based authentication with cookie management
     - Stores session cookies: `TournoiEnLigneidt`, `TournoiEnLignetkt`, `PHPSESSID`
-  - **Data Fetching**: Two main API methods
+  - **Data Fetching**: Five API methods
     - `getPlayerFinishedGames(playerId, gameId, page)` - Fetch list of games (10 per page)
     - `getGameLog(tableId, translated)` - Fetch detailed game log with all events
+    - `getTableInfo(tableId)` - Fetch table info including player ELO ratings
+    - `getRanking(gameId, start, mode)` - Fetch player rankings by ELO
+    - `searchPlayer(query)` - Search for players by name
   - Created `src/lib/bga-client.ts` - BGA API client class
   - Created `src/lib/bga-types.ts` - TypeScript type definitions
 - ✅ **Game Log Parser**: Extracts searchable fields from game logs
@@ -269,7 +274,8 @@ npm run db:generate   # Generate Prisma Client
   - Handles event types: `notifyChooseRace`, `notifyBuild`, `notifyUpgrade`, `notifyRoundEnd`
 - ✅ **Game Storage Helpers**: Database storage and retrieval functions
   - Created `src/lib/game-storage.ts` - Storage helper functions
-    - `storeGame()` - Store parsed game and all players in transaction
+    - `storeGame()` - Store parsed game and all players in Prisma transaction
+    - Uses explicit transaction: creates Game first, then creates Players with tableId FK
     - `gameExists()` - Check if game already in database
     - `getGame()` - Retrieve game with all players
   - Handles ELO mapping from BGA API data
@@ -285,24 +291,66 @@ npm run db:generate   # Generate Prisma Client
 - ✅ **Documentation**:
   - `docs/BGA_API.md` - Complete API reference with examples
   - `docs/GAME_LOG_STRUCTURE.md` - Detailed log structure and parsing strategy
-- ✅ **Test Scripts**: Verification and testing scripts
-  - `scripts/test-storage.ts` - Verify game storage works correctly
-  - `scripts/test-queries.ts` - Test all search query patterns
-  - `scripts/test-parser.ts` - Test game log parsing
-  - `scripts/test-game-log.ts` - Test game log fetching
-  - All tests passing with real BGA data
 
 **Complete Data Collection Flow:**
 1. `BGAClient.initialize()` - Fetches homepage and extracts request token
 2. `BGAClient.login(username, password)` - Authenticates with credentials
 3. `BGAClient.getPlayerFinishedGames(playerId, gameId, page)` - Fetch game list (paginated, 10 per page)
-4. `BGAClient.getGameLog(tableId)` - Fetch detailed log for specific game
-5. `GameLogParser.parseGameLog(gameTable, log)` - Parse log into searchable data
-6. `storeGame(parsedGame, gameTableInfo)` - Store in database (1 game + N players)
+4. `BGAClient.getGameLog(tableId)` - Fetch detailed game log
+5. `BGAClient.getTableInfo(tableId)` - Fetch table info including player ELO ratings
+6. `GameLogParser.parseGameLog(gameTable, logResponse, tableInfo)` - Parse log into searchable data
+7. `storeGame(parsedGame)` - Store in database using transaction (1 game + N players)
+
+**Phase 4: Game Collection System** (✅ COMPLETE)
+- ✅ **Player Rankings API**: Added `getRanking()` method to fetch top players by ELO
+- ✅ **Player Search API**: Added `searchPlayer()` method to find players by name
+  - Uses BGA omnibar search endpoint
+  - Supports fuzzy matching
+  - Returns player ID, name, and country info
+- ✅ **Game Collector Service**: Created `src/lib/game-collector.ts`
+  - Automated pagination through all player games
+  - Rate limiting (configurable, default: 1.5s between requests)
+  - Duplicate detection (skips games already in database)
+  - Error recovery with consecutive error tracking
+  - Progress callbacks for real-time status updates
+  - Special handling for old archived games (BGA doesn't keep logs forever)
+- ✅ **CLI Collection Scripts**:
+  - `scripts/collect-player.ts` - Collect games for specific player (by name or ID)
+  - `scripts/collect-top10.ts` - Collect games for top 10 ranked players
+- ✅ **Error Handling**:
+  - Gracefully handles old archived games without log files
+  - BGA error responses detected and logged
+  - Consecutive error tracking prevents infinite loops
+  - Clear progress messages with emoji icons
+
+**Collection System Usage:**
+```bash
+# Collect games for a specific player by name
+npx tsx scripts/collect-player.ts Nigator
+
+# Collect games for a specific player by ID
+npx tsx scripts/collect-player.ts 83983741
+
+# Collect games for top 10 players
+npx tsx scripts/collect-top10.ts
+```
+
+**Current Database Status:**
+- 8 games successfully collected (from player 96457033)
+- All games include: player data, ELO ratings, race info, building actions per round
+- Foreign key relationships working correctly (Player.tableId → Game.tableId)
+- Database accessible via Prisma Studio at http://localhost:5558
+- Ready for search functionality implementation
+
+**Known Limitations:**
+- **BGA Archive Retention**: BGA only keeps game log files for relatively recent games (estimated 6-12 months)
+  - Older archived games return error: "Cannot find gamenotifs log file"
+  - Collection system automatically detects and skips these games
+  - Does not affect game metadata (still visible in game list, just can't parse detailed logs)
 
 ### 🚧 Pending Work
 
-**Phase 3: Search Functionality** (Ready to implement)
+**Phase 3: Search Functionality** (Next priority)
 1. Create search API endpoint (`/api/search/route.ts`)
    - Accept search criteria from frontend
    - Build Prisma queries using query helpers
@@ -310,17 +358,6 @@ npm run db:generate   # Generate Prisma Client
 2. Integrate search API with frontend UI
 3. Replace mock data with real database queries
 4. Test all search filter combinations
-
-**Phase 4: Data Collection** (Ready to implement)
-1. Create data collection API endpoints
-   - `/api/collect/games/route.ts` - Collect and parse games for a player
-   - Use `storeGame()` helper to save parsed data
-   - Skip games that already exist with `gameExists()`
-2. Implement pagination logic to collect all player games
-3. Build admin interface for triggering data collection
-   - Simple form with BGA credentials + player ID
-   - Progress tracking during collection
-   - Display collected game count
 
 **Phase 5: Production Deployment**
 1. Create Dockerfile for production
