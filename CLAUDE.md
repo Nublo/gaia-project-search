@@ -30,6 +30,7 @@ This is a web application designed with the following deployment requirements:
 - **Database**: PostgreSQL with JSONB for hybrid storage (raw JSON + preprocessed searchable fields)
 - **ORM**: Prisma for type-safe database access
 - **Frontend**: React with Tailwind CSS
+- **Browser Automation**: Playwright (headless Chromium) for BGA API access
 - **Containerization**: Docker for local PostgreSQL and production deployment
 
 ## Architecture
@@ -97,14 +98,18 @@ bga_gaia_parser/
 │   │       └── search/        # Search endpoints
 │   ├── components/            # React components
 │   ├── lib/                   # Utility functions
-│   │   ├── bga-client.ts     # BGA API client
+│   │   ├── bga-client.ts     # BGA API client (Playwright-based)
 │   │   ├── bga-types.ts      # BGA API TypeScript types
+│   │   ├── game-collector.ts # Automated game collection with rate limit handling
 │   │   ├── game-parser.ts    # JSON parsing logic
 │   │   ├── gaia-constants.ts # Race/building/event type mappings
 │   │   ├── game-storage.ts   # Database storage helpers
 │   │   ├── building-query.ts # Complex query helpers
 │   │   └── db.ts             # Prisma client
 │   └── types/                 # TypeScript types
+├── scripts/
+│   ├── collect-player.ts      # CLI: collect games for a specific player
+│   └── collect-top10.ts       # CLI: collect games for top 10 ranked players
 ├── prisma/
 │   └── schema.prisma          # Database schema
 ├── docker-compose.yml         # Local PostgreSQL setup
@@ -117,6 +122,9 @@ bga_gaia_parser/
 ```bash
 # Install dependencies
 npm install
+
+# Install Playwright Chromium browser
+npx playwright install chromium
 
 # Start local PostgreSQL database (Docker must be running)
 docker-compose up -d
@@ -250,17 +258,26 @@ npm run db:generate   # Generate Prisma Client
   - `npm run db:migrate` - Run migrations
   - `npm run db:push` - Push schema changes
   - `npm run db:generate` - Generate Prisma Client
-- ✅ **BGA API Client**: Full implementation with authentication and data fetching
+- ✅ **BGA API Client**: Playwright-based implementation with authentication and data fetching
+  - **Browser Automation**: Uses headless Chromium via Playwright to bypass BGA anti-bot detection
+    - All API requests originate from a real browser (correct TLS fingerprint, cookies, JS context)
+    - Cookies/sessions managed automatically by the browser context
+    - `requestToken` extracted from page JS: `page.evaluate(() => bgaConfig.requestToken)`
+  - **Three Request Strategies**:
+    - `apiFetch()` — Playwright's `context.request` (shares browser cookies) for simple APIs (login, search, ranking)
+    - `browserNavigate()` — `page.goto()` + `page.route()` header injection for anti-bot-sensitive APIs (game logs, table info)
+    - `navigateTo()` — Full page navigation with `networkidle` for session context establishment
   - **Authentication**: `initialize()` and `login()` methods
-    - Automatic request token extraction from BGA homepage
-    - Session-based authentication with cookie management
-    - Stores session cookies: `TournoiEnLigneidt`, `TournoiEnLignetkt`, `PHPSESSID`
+    - Launches Chromium, navigates to BGA homepage, extracts request token
+    - Auto-detects BGA domain redirect (`boardgamearena.com` → `en.boardgamearena.com`)
+    - Login via `context.request.fetch()` (shares browser cookies without cross-origin issues)
   - **Data Fetching**: Five API methods
     - `getPlayerFinishedGames(playerId, gameId, page)` - Fetch list of games (10 per page)
     - `getGameLog(tableId, translated)` - Fetch detailed game log with all events
     - `getTableInfo(tableId)` - Fetch table info including player ELO ratings
     - `getRanking(gameId, start, mode)` - Fetch player rankings by ELO
     - `searchPlayer(query)` - Search for players by name
+  - `close()` method for browser cleanup (must be called when done)
   - Created `src/lib/bga-client.ts` - BGA API client class
   - Created `src/lib/bga-types.ts` - TypeScript type definitions
 - ✅ **Game Log Parser**: Extracts searchable fields from game logs
@@ -293,13 +310,14 @@ npm run db:generate   # Generate Prisma Client
   - `docs/GAME_LOG_STRUCTURE.md` - Detailed log structure and parsing strategy
 
 **Complete Data Collection Flow:**
-1. `BGAClient.initialize()` - Fetches homepage and extracts request token
-2. `BGAClient.login(username, password)` - Authenticates with credentials
+1. `BGAClient.initialize()` - Launches Chromium, navigates to BGA homepage, extracts request token
+2. `BGAClient.login(username, password)` - Authenticates via browser context
 3. `BGAClient.getPlayerFinishedGames(playerId, gameId, page)` - Fetch game list (paginated, 10 per page)
-4. `BGAClient.getGameLog(tableId)` - Fetch detailed game log
+4. `BGAClient.getGameLog(tableId)` - Fetch detailed game log (via browser navigation)
 5. `BGAClient.getTableInfo(tableId)` - Fetch table info including player ELO ratings
 6. `GameLogParser.parseGameLog(gameTable, logResponse, tableInfo)` - Parse log into searchable data
 7. `storeGame(parsedGame)` - Store in database using transaction (1 game + N players)
+8. `BGAClient.close()` - Close browser and clean up resources
 
 **Phase 4: Game Collection System** (✅ COMPLETE)
 - ✅ **Player Rankings API**: Added `getRanking()` method to fetch top players by ELO
@@ -311,16 +329,19 @@ npm run db:generate   # Generate Prisma Client
   - Automated pagination through all player games
   - Rate limiting (configurable, default: 1.5s between requests)
   - Duplicate detection (skips games already in database)
-  - Error recovery with consecutive error tracking
+  - **Immediate rate limit detection**: Stops as soon as BGA returns "You have reached a limit" — no wasted retries
+  - `RateLimitError` propagates up with partial stats, so summaries are always complete
+  - `collectMultiplePlayers()` stops processing remaining players on rate limit
   - Progress callbacks for real-time status updates
-  - Special handling for old archived games (BGA doesn't keep logs forever)
 - ✅ **CLI Collection Scripts**:
   - `scripts/collect-player.ts` - Collect games for specific player (by name or ID)
   - `scripts/collect-top10.ts` - Collect games for top 10 ranked players
+  - Both support env var override: `BGA_USERNAME=x BGA_PASSWORD=y npx tsx scripts/collect-player.ts <name>`
+  - Both display rate limit status in summary and suggest re-running later
 - ✅ **Error Handling**:
   - Gracefully handles old archived games without log files
   - BGA error responses detected and logged
-  - Consecutive error tracking prevents infinite loops
+  - Rate limit detection with immediate clean exit
   - Clear progress messages with emoji icons
 
 **Collection System Usage:**
@@ -333,20 +354,28 @@ npx tsx scripts/collect-player.ts 83983741
 
 # Collect games for top 10 players
 npx tsx scripts/collect-top10.ts
+
+# Run with different BGA credentials (overrides .env)
+BGA_USERNAME=user2 BGA_PASSWORD=pass2 npx tsx scripts/collect-player.ts Nigator
+
+# Run multiple collectors in parallel (different terminals, different accounts)
+# Terminal 1: BGA_USERNAME=user1 BGA_PASSWORD=pass1 npx tsx scripts/collect-player.ts Nigator
+# Terminal 2: BGA_USERNAME=user2 BGA_PASSWORD=pass2 npx tsx scripts/collect-player.ts nanyuanyiai
 ```
 
 **Current Database Status:**
-- 8 games successfully collected (from player 96457033)
+- ~200 games collected from top-ranked players
 - All games include: player data, ELO ratings, race info, building actions per round
 - Foreign key relationships working correctly (Player.tableId → Game.tableId)
 - Database accessible via Prisma Studio at http://localhost:5558
-- Ready for search functionality implementation
+- Collection ongoing for remaining top 10 players (BGA daily rate limit: ~100 game log views/day/account)
 
 **Known Limitations:**
-- **BGA Archive Retention**: BGA only keeps game log files for relatively recent games (estimated 6-12 months)
-  - Older archived games return error: "Cannot find gamenotifs log file"
-  - Collection system automatically detects and skips these games
-  - Does not affect game metadata (still visible in game list, just can't parse detailed logs)
+- **BGA Daily Rate Limit**: ~100 game log views per day per account
+  - After ~100 fetches, BGA returns: "You have reached a limit (replay)"
+  - Collector detects this immediately and stops cleanly
+  - Re-run the next day (or use multiple accounts) to continue
+  - Game list pagination is NOT rate limited — only game log/replay views
 
 ### 🚧 Pending Work
 
@@ -470,7 +499,7 @@ const games = await prisma.$queryRaw`
 - Run migrations: `npm run db:migrate` (first time only)
 - Start app: `npm run dev`
 - Access at: `http://localhost:3000`
-- View database: `npm run db:studio` (opens at `http://localhost:5555`)
+- View database: `npm run db:studio` (opens at `http://localhost:5558`)
 
 ### Production (Vercel - Recommended)
 - Deploy Next.js to Vercel (free tier)

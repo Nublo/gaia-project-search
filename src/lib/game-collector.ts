@@ -9,7 +9,17 @@ export interface CollectionStats {
   newGames: number;
   skippedGames: number;
   failedGames: number;
+  rateLimited: boolean;
   errors: Array<{ tableId: string; error: string }>;
+}
+
+export class RateLimitError extends Error {
+  public stats: CollectionStats;
+  constructor(message: string, stats: CollectionStats) {
+    super(message);
+    this.name = 'RateLimitError';
+    this.stats = stats;
+  }
 }
 
 export interface CollectionOptions {
@@ -42,13 +52,13 @@ export class GameCollector {
       newGames: 0,
       skippedGames: 0,
       failedGames: 0,
+      rateLimited: false,
       errors: [],
     };
 
     this.options.onProgress(`\n🎯 Collecting games for ${stats.playerName} (ID: ${playerId})`);
 
     let page = 1;
-    let consecutiveErrors = 0;
 
     while (page <= this.options.maxPages) {
       try {
@@ -82,9 +92,8 @@ export class GameCollector {
           try {
             this.options.onProgress(`      ⬇️  Fetching game ${tableId}...`);
 
-            // Fetch sequentially to avoid rate limiting
             const logResponse = await this.client.getGameLog(gameTable.table_id);
-            await this.delay(500); // Small delay between requests
+            await this.delay(500);
             const tableInfo = await this.client.getTableInfo(gameTable.table_id);
 
             const parsedGame = GameLogParser.parseGameLog(gameTable, logResponse, tableInfo);
@@ -92,23 +101,24 @@ export class GameCollector {
 
             this.options.onProgress(`      ✅ Stored game ${tableId}`);
             stats.newGames++;
-            consecutiveErrors = 0;
 
             // Rate limiting
             await this.delay(this.options.rateLimit);
           } catch (error) {
             const errorMsg = error instanceof Error ? error.message : String(error);
 
+            // Detect rate limit and bail out immediately
+            if (errorMsg.includes('You have reached a limit')) {
+              this.options.onProgress(`   🛑 Rate limit reached! Stopping immediately.`);
+              stats.rateLimited = true;
+              stats.failedGames++;
+              stats.errors.push({ tableId: gameTable.table_id, error: errorMsg });
+              throw new RateLimitError(errorMsg, stats);
+            }
+
             this.options.onProgress(`      ❌ Failed to process game ${tableId}: ${errorMsg}`);
             stats.failedGames++;
             stats.errors.push({ tableId: gameTable.table_id, error: errorMsg });
-            consecutiveErrors++;
-
-            // Stop if too many consecutive errors
-            if (consecutiveErrors >= 5) {
-              this.options.onProgress(`   ⚠️  Too many consecutive errors, stopping collection for this player`);
-              return stats;
-            }
           }
         }
 
@@ -120,15 +130,13 @@ export class GameCollector {
 
         page++;
       } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        this.options.onProgress(`   ❌ Failed to fetch page ${page}: ${errorMsg}`);
-        consecutiveErrors++;
-
-        if (consecutiveErrors >= 3) {
-          this.options.onProgress(`   ⚠️  Too many page fetch errors, stopping`);
-          break;
+        // Propagate rate limit errors up
+        if (error instanceof RateLimitError) {
+          throw error;
         }
 
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        this.options.onProgress(`   ❌ Failed to fetch page ${page}: ${errorMsg}`);
         page++;
       }
     }
@@ -143,8 +151,17 @@ export class GameCollector {
     const allStats: CollectionStats[] = [];
 
     for (const player of players) {
-      const stats = await this.collectPlayerGames(player.id, player.name);
-      allStats.push(stats);
+      try {
+        const stats = await this.collectPlayerGames(player.id, player.name);
+        allStats.push(stats);
+      } catch (error) {
+        if (error instanceof RateLimitError) {
+          allStats.push(error.stats);
+          console.log(`\n🛑 Rate limit hit. Skipping remaining players.`);
+          break;
+        }
+        throw error;
+      }
     }
 
     return allStats;

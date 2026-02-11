@@ -56,12 +56,15 @@ async function collectTop10() {
     let totalSkipped = 0;
     let totalFailed = 0;
 
+    const wasRateLimited = results.some((s) => s.rateLimited);
+
     results.forEach((stats) => {
       console.log(`\n👤 ${stats.playerName} (ID: ${stats.playerId})`);
       console.log(`   Total games found: ${stats.totalGames}`);
       console.log(`   New games stored: ${stats.newGames}`);
       console.log(`   Already existed: ${stats.skippedGames}`);
       console.log(`   Failed: ${stats.failedGames}`);
+      if (stats.rateLimited) console.log(`   🛑 Rate limited`);
 
       totalNew += stats.newGames;
       totalSkipped += stats.skippedGames;
@@ -75,11 +78,19 @@ async function collectTop10() {
       }
     });
 
+    const skippedPlayers = topPlayers.length - results.length;
+
     console.log('\n' + '='.repeat(70));
-    console.log(`✅ Collection Complete!`);
+    console.log(wasRateLimited ? `⏸️  Collection paused (rate limited)` : `✅ Collection Complete!`);
     console.log(`   Total new games: ${totalNew}`);
     console.log(`   Total skipped: ${totalSkipped}`);
     console.log(`   Total failed: ${totalFailed}`);
+    if (skippedPlayers > 0) {
+      console.log(`   Players not attempted: ${skippedPlayers}`);
+    }
+    if (wasRateLimited) {
+      console.log(`\n   Run again later to continue collecting.`);
+    }
     console.log('='.repeat(70));
 
   } catch (error) {
@@ -88,6 +99,8 @@ async function collectTop10() {
       console.error('Stack trace:', error.stack);
     }
     process.exit(1);
+  } finally {
+    await client.close();
   }
 }
 

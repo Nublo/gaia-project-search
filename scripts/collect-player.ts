@@ -1,5 +1,5 @@
 import { BGAClient } from '../src/lib/bga-client';
-import { GameCollector } from '../src/lib/game-collector';
+import { GameCollector, RateLimitError, CollectionStats } from '../src/lib/game-collector';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
@@ -78,7 +78,16 @@ async function collectPlayer() {
       rateLimit: 1500, // 1.5 seconds between requests
     });
 
-    const stats = await collector.collectPlayerGames(playerId, playerName);
+    let stats: CollectionStats;
+    try {
+      stats = await collector.collectPlayerGames(playerId, playerName);
+    } catch (error) {
+      if (error instanceof RateLimitError) {
+        stats = error.stats;
+      } else {
+        throw error;
+      }
+    }
 
     // Display summary
     console.log('\n' + '='.repeat(70));
@@ -90,6 +99,10 @@ async function collectPlayer() {
     console.log(`   Already existed: ${stats.skippedGames}`);
     console.log(`   Failed: ${stats.failedGames}`);
 
+    if (stats.rateLimited) {
+      console.log(`\n   🛑 Stopped early due to BGA rate limit. Run again later to continue.`);
+    }
+
     if (stats.errors.length > 0) {
       console.log(`\n   Errors:`);
       stats.errors.forEach((err) => {
@@ -98,7 +111,7 @@ async function collectPlayer() {
     }
 
     console.log('\n' + '='.repeat(70));
-    console.log(`✅ Collection Complete!`);
+    console.log(stats.rateLimited ? `⏸️  Collection paused (rate limited). Run again to continue.` : `✅ Collection Complete!`);
     console.log('='.repeat(70));
 
   } catch (error) {
@@ -107,6 +120,8 @@ async function collectPlayer() {
       console.error('Stack trace:', error.stack);
     }
     process.exit(1);
+  } finally {
+    await client.close();
   }
 }
 

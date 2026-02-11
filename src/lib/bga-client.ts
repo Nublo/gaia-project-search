@@ -1,43 +1,67 @@
-import { BGAConfig, LoginResponse, BGASession, GetPlayerFinishedGamesResponse, GetGameLogResponse, GetTableInfoResponse, GetRankingResponse, SearchPlayerResponse } from './bga-types';
+import { chromium, Browser, BrowserContext, Page, APIRequestContext } from 'playwright';
+import { BGASession, LoginResponse, GetPlayerFinishedGamesResponse, GetGameLogResponse, GetTableInfoResponse, GetRankingResponse, SearchPlayerResponse } from './bga-types';
+
+export interface BGAClientOptions {
+  headless?: boolean;
+  slowMo?: number;
+}
 
 export class BGAClient {
   private session: BGASession;
   private baseUrl = 'https://boardgamearena.com';
+  private browser: Browser | null = null;
+  private context: BrowserContext | null = null;
+  private page: Page | null = null;
+  private request: APIRequestContext | null = null;
+  private options: BGAClientOptions;
 
-  constructor() {
+  constructor(options: BGAClientOptions = {}) {
     this.session = {
       requestToken: '',
-      cookies: new Map(),
+    };
+    this.options = {
+      headless: options.headless ?? true,
+      slowMo: options.slowMo,
     };
   }
 
   /**
-   * Initialize the client by fetching the homepage and extracting the request token
+   * Initialize the client by launching a browser, navigating to BGA, and extracting the request token
    */
   async initialize(): Promise<void> {
-    console.log('[BGAClient] Initializing...');
+    console.log('[BGAClient] Initializing (launching browser)...');
 
     try {
-      const response = await fetch(this.baseUrl, {
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:146.0) Gecko/20100101 Firefox/146.0',
-          Accept:
-            'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-          'Accept-Language': 'en-GB,en;q=0.5',
-        },
+      this.browser = await chromium.launch({
+        headless: this.options.headless,
+        slowMo: this.options.slowMo,
       });
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch homepage: ${response.status} ${response.statusText}`);
+      this.context = await this.browser.newContext({
+        userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:146.0) Gecko/20100101 Firefox/146.0',
+        locale: 'en-GB',
+      });
+
+      this.page = await this.context.newPage();
+      this.request = this.context.request;
+
+      // Navigate to BGA homepage (establishes cookies via real Chromium)
+      await this.page.goto(this.baseUrl, { waitUntil: 'networkidle' });
+
+      const currentUrl = this.page.url();
+      console.log(`[BGAClient] Page loaded at: ${currentUrl}`);
+
+      // Update base URL to match the actual domain (BGA may redirect, e.g., to en.boardgamearena.com)
+      const pageOrigin = new URL(currentUrl).origin;
+      if (pageOrigin !== this.baseUrl) {
+        console.log(`[BGAClient] Updating base URL from ${this.baseUrl} to ${pageOrigin}`);
+        this.baseUrl = pageOrigin;
       }
 
-      // Store initial cookies from homepage
-      this.storeCookiesFromResponse(response);
-
-      // Parse HTML to extract bgaConfig.requestToken
-      const html = await response.text();
-      const requestToken = this.extractRequestToken(html);
+      // Extract request token from bgaConfig JS object
+      const requestToken = await this.page.evaluate(() => {
+        return (window as any).bgaConfig?.requestToken as string | undefined;
+      });
 
       if (!requestToken) {
         throw new Error('Failed to extract request token from homepage');
@@ -58,12 +82,13 @@ export class BGAClient {
   async login(username: string, password: string): Promise<LoginResponse> {
     console.log(`[BGAClient] Logging in as: ${username}`);
 
-    if (!this.session.requestToken) {
+    if (!this.session.requestToken || !this.request) {
       throw new Error('Client not initialized. Call initialize() first.');
     }
 
     try {
-      // Prepare form data
+      const loginUrl = `${this.baseUrl}/account/auth/loginUserWithPassword.html`;
+
       const formData = new URLSearchParams({
         username,
         password,
@@ -71,28 +96,20 @@ export class BGAClient {
         request_token: this.session.requestToken,
       });
 
-      const response = await fetch(`${this.baseUrl}/account/auth/loginUserWithPassword.html`, {
+      const response = await this.request.fetch(loginUrl, {
         method: 'POST',
         headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:146.0) Gecko/20100101 Firefox/146.0',
-          Accept: '*/*',
-          'Accept-Language': 'en-GB,en;q=0.5',
           'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
           'X-Request-Token': this.session.requestToken,
           Referer: `${this.baseUrl}/?step=2&page=login`,
           Origin: this.baseUrl,
-          Cookie: this.getCookieHeader(),
         },
-        body: formData.toString(),
+        data: formData.toString(),
       });
 
-      if (!response.ok) {
-        throw new Error(`Login request failed: ${response.status} ${response.statusText}`);
+      if (!response.ok()) {
+        throw new Error(`Login request failed: ${response.status()} ${response.statusText()}`);
       }
-
-      // Store session cookies from login response
-      this.storeCookiesFromResponse(response);
 
       const loginResponse: LoginResponse = await response.json();
 
@@ -104,10 +121,11 @@ export class BGAClient {
       this.session.userId = loginResponse.data.user_id;
       this.session.username = loginResponse.data.username;
 
-      // Update request token from cookies if available
-      const newRequestToken = this.session.cookies.get('TournoiEnLigneidt');
-      if (newRequestToken) {
-        this.session.requestToken = newRequestToken;
+      // Re-extract request token from cookies (browser context manages them)
+      const cookies = await this.context!.cookies(this.baseUrl);
+      const idtCookie = cookies.find(c => c.name === 'TournoiEnLigneidt');
+      if (idtCookie) {
+        this.session.requestToken = idtCookie.value;
       }
 
       console.log('[BGAClient] Login successful');
@@ -122,39 +140,93 @@ export class BGAClient {
   }
 
   /**
-   * Extract request token from HTML response
+   * Execute a fetch via Playwright's context.request API (shares cookies with browser).
+   * Good for simple API calls (search, ranking) where anti-bot isn't a concern.
    */
-  private extractRequestToken(html: string): string | null {
-    // Look for: var bgaConfig = { ... requestToken: 'TOKEN' ... }
-    const match = html.match(/var\s+bgaConfig\s*=\s*{[^}]*requestToken:\s*'([^']+)'/);
-    return match ? match[1] : null;
+  private async apiFetch<T>(url: string, options: { method?: string; headers?: Record<string, string>; body?: string } = {}): Promise<T> {
+    if (!this.request) {
+      throw new Error('Client not initialized. Call initialize() first.');
+    }
+
+    const headers: Record<string, string> = {
+      Accept: '*/*',
+      'X-Request-Token': this.session.requestToken,
+      ...options.headers,
+    };
+
+    const response = await this.request.fetch(url, {
+      method: options.method || 'GET',
+      headers,
+      data: options.body,
+    });
+
+    if (!response.ok()) {
+      throw new Error(`Request failed: ${response.status()} ${response.statusText()}`);
+    }
+
+    return response.json();
   }
 
   /**
-   * Store cookies from response headers
+   * Navigate the browser directly to an API URL, injecting custom headers via route interception.
+   * This is a real browser navigation request — correct TLS fingerprint, cookies, and JS context.
+   * Bypasses Sentry's fetch wrapper since it's a navigation, not a programmatic fetch.
    */
-  private storeCookiesFromResponse(response: Response): void {
-    const setCookieHeaders = response.headers.getSetCookie();
+  private async browserNavigate<T>(url: string, extraHeaders: Record<string, string> = {}): Promise<T> {
+    if (!this.page) {
+      throw new Error('Client not initialized. Call initialize() first.');
+    }
 
-    setCookieHeaders.forEach((cookieString) => {
-      const [nameValue] = cookieString.split(';');
-      const [name, value] = nameValue.split('=');
+    const requestToken = this.session.requestToken;
 
-      if (name && value && value !== 'deleted') {
-        this.session.cookies.set(name.trim(), value.trim());
+    // Intercept the specific request to add custom headers
+    const urlPattern = url.split('?')[0] + '*';
+    await this.page.route(urlPattern, async (route) => {
+      await route.continue({
+        headers: {
+          ...route.request().headers(),
+          'X-Request-Token': requestToken,
+          ...extraHeaders,
+        },
+      });
+    });
+
+    try {
+      const response = await this.page.goto(url, { waitUntil: 'load' });
+
+      if (!response) {
+        throw new Error('No response received from navigation');
       }
-    });
+
+      if (!response.ok()) {
+        throw new Error(`Request failed: ${response.status()} ${response.statusText()}`);
+      }
+
+      // Parse the JSON body from the navigation response
+      const body = await response.body();
+      return JSON.parse(body.toString());
+    } finally {
+      await this.page.unroute(urlPattern);
+    }
   }
 
   /**
-   * Get Cookie header string from stored cookies
+   * Navigate to a page in the browser and refresh the request token.
+   * Uses networkidle to ensure BGA's JS has fully executed.
    */
-  private getCookieHeader(): string {
-    const cookies: string[] = [];
-    this.session.cookies.forEach((value, name) => {
-      cookies.push(`${name}=${value}`);
+  private async navigateTo(url: string): Promise<void> {
+    if (!this.page) {
+      throw new Error('Client not initialized. Call initialize() first.');
+    }
+    await this.page.goto(url, { waitUntil: 'networkidle' });
+
+    // Refresh request token from the page (BGA may rotate it on each page load)
+    const newToken = await this.page.evaluate(() => {
+      return (window as any).bgaConfig?.requestToken as string | undefined;
     });
-    return cookies.join('; ');
+    if (newToken) {
+      this.session.requestToken = newToken;
+    }
   }
 
   /**
@@ -163,7 +235,6 @@ export class BGAClient {
   getSession(): BGASession {
     return {
       requestToken: this.session.requestToken,
-      cookies: new Map(this.session.cookies),
       userId: this.session.userId,
       username: this.session.username,
     };
@@ -173,21 +244,25 @@ export class BGAClient {
    * Check if user is logged in
    */
   isLoggedIn(): boolean {
-    return !!this.session.userId && this.session.cookies.has('TournoiEnLigneidt');
+    return !!this.session.userId;
   }
 
+  /**
+   * Close the browser and clean up resources
+   */
+  async close(): Promise<void> {
+    if (this.browser) {
+      console.log('[BGAClient] Closing browser...');
+      await this.browser.close();
+      this.browser = null;
+      this.context = null;
+      this.page = null;
+      this.request = null;
+    }
+  }
 
   /**
    * Fetch finished games for a specific player
-   *
-   * @param playerId - BGA player ID to fetch games for
-   * @param gameId - BGA game ID (e.g., 1495 for Gaia Project)
-   * @param page - Page number for pagination (1-based, returns 10 games per page)
-   * @returns Response containing list of finished game tables
-   *
-   * @example
-   * const games = await client.getPlayerFinishedGames(96457033, 1495, 1);
-   * console.log(`Fetched ${games.data.tables.length} games`);
    */
   async getPlayerFinishedGames(
     playerId: number,
@@ -201,63 +276,27 @@ export class BGAClient {
     console.log(`[BGAClient] Fetching finished games for player=${playerId}, game=${gameId}, page=${page}`);
 
     try {
-      // Step 1: Visit the gamestats page first to establish session context
-      console.log(`[BGAClient] Visiting gamestats page to establish session...`);
+      // Navigate to gamestats page to establish session context
       const gamestatsPageUrl = `${this.baseUrl}/gamestats?game=${gameId}`;
+      await this.navigateTo(gamestatsPageUrl);
 
-      const pageResponse = await fetch(gamestatsPageUrl, {
-        method: 'GET',
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:146.0) Gecko/20100101 Firefox/146.0',
-          Accept:
-            'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-          'Accept-Language': 'en-GB,en;q=0.5',
-          Cookie: this.getCookieHeader(),
-        },
-      });
-
-      if (!pageResponse.ok) {
-        throw new Error(`Failed to access gamestats page: ${pageResponse.status}`);
-      }
-
-      // Store any new cookies from the page visit
-      this.storeCookiesFromResponse(pageResponse);
-
-      // Step 2: Now make the API request for games list
-      console.log(`[BGAClient] Making API request for finished games...`);
-
-      // Build query parameters matching BGA's expected format
+      // Build API URL
       const params = new URLSearchParams({
         player: playerId.toString(),
-        opponent_id: '0', // 0 = all opponents
+        opponent_id: '0',
         game_id: gameId.toString(),
-        finished: '0', // 0 = finished games (confusing but correct)
+        finished: '0',
         page: page.toString(),
-        updateStats: '0', // 0 = don't include stats (faster)
+        updateStats: '0',
         'dojo.preventCache': Date.now().toString(),
       });
 
       const url = `${this.baseUrl}/gamestats/gamestats/getGames.html?${params.toString()}`;
 
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:146.0) Gecko/20100101 Firefox/146.0',
-          Accept: '*/*',
-          'Accept-Language': 'en-GB,en;q=0.5',
-          'X-Request-Token': this.session.requestToken,
-          Referer: gamestatsPageUrl,
-          Cookie: this.getCookieHeader(),
-        },
+      const gamesResponse = await this.browserNavigate<GetPlayerFinishedGamesResponse>(url, {
+        'X-Requested-With': 'XMLHttpRequest',
+        Referer: gamestatsPageUrl,
       });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch games: ${response.status} ${response.statusText}`);
-      }
-
-      const gamesResponse: GetPlayerFinishedGamesResponse = await response.json();
 
       console.log(`[BGAClient] Successfully fetched ${gamesResponse.data.tables.length} games`);
 
@@ -270,14 +309,6 @@ export class BGAClient {
 
   /**
    * Fetch detailed game log for a specific game table
-   *
-   * @param tableId - BGA table ID (from GameTableInfo.table_id)
-   * @param translated - Whether to get translated logs (default: true)
-   * @returns Response containing detailed game log entries
-   *
-   * @example
-   * const log = await client.getGameLog('798145204');
-   * console.log(`Fetched ${log.data.logs.length} log entries`);
    */
   async getGameLog(tableId: string, translated: boolean = true): Promise<GetGameLogResponse> {
     if (!this.isLoggedIn()) {
@@ -287,32 +318,11 @@ export class BGAClient {
     console.log(`[BGAClient] Fetching game log for table_id=${tableId}`);
 
     try {
-      // First, visit the gamereview page to establish session for this game
+      // Navigate to gamereview page to establish session for this game
       const gamereviewUrl = `${this.baseUrl}/gamereview?table=${tableId}`;
+      await this.navigateTo(gamereviewUrl);
 
-      const pageResponse = await fetch(gamereviewUrl, {
-        method: 'GET',
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:146.0) Gecko/20100101 Firefox/146.0',
-          Accept:
-            'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-          'Accept-Language': 'en-GB,en;q=0.5',
-          Cookie: this.getCookieHeader(),
-        },
-      });
-
-      if (!pageResponse.ok) {
-        console.log(`[BGAClient] Warning: Failed to visit gamereview page: ${pageResponse.status}`);
-      }
-
-      // Store any new cookies from the page visit
-      this.storeCookiesFromResponse(pageResponse);
-
-      // Small delay to let session establish
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Build query parameters
+      // Build API URL
       const params = new URLSearchParams({
         table: tableId,
         translated: translated.toString(),
@@ -321,36 +331,13 @@ export class BGAClient {
 
       const url = `${this.baseUrl}/archive/archive/logs.html?${params.toString()}`;
 
-      const cookieHeader = this.getCookieHeader();
-      console.log(`[BGAClient] DEBUG: Cookies being sent for game ${tableId}:`);
-      console.log(`  ${cookieHeader.substring(0, 200)}...`);
-
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:146.0) Gecko/20100101 Firefox/146.0',
-          Accept: '*/*',
-          'Accept-Language': 'en-GB,en;q=0.5',
-          'X-Request-Token': this.session.requestToken,
-          'X-Requested-With': 'XMLHttpRequest',
-          Referer: `${this.baseUrl}/gamereview?table=${tableId}`,
-          Cookie: this.getCookieHeader(),
-        },
+      const logResponse = await this.browserNavigate<GetGameLogResponse>(url, {
+        'X-Requested-With': 'XMLHttpRequest',
+        Referer: gamereviewUrl,
       });
 
-      if (!response.ok) {
-        console.log(response);
-        throw new Error(`Failed to fetch game log: ${response.status} ${response.statusText}`);
-      }
-
-      // Store cookies to keep session alive
-      this.storeCookiesFromResponse(response);
-
-      const logResponse: GetGameLogResponse = await response.json();
-
-      // Check if BGA returned an error (status: "0" or status: 0)
-      if (logResponse.status === 0 || logResponse.status === '0' as any) {
+      // Check if BGA returned an error
+      if (logResponse.status === 0 || logResponse.status === ('0' as any)) {
         const errorMsg = (logResponse as any).error || 'Unknown error';
         throw new Error(`BGA API error: ${errorMsg}`);
       }
@@ -366,13 +353,6 @@ export class BGAClient {
 
   /**
    * Fetch detailed table information including player ELO ratings
-   *
-   * @param tableId - BGA table ID (from GameTableInfo.table_id)
-   * @returns Response containing detailed table information with all players' ELO ratings
-   *
-   * @example
-   * const tableInfo = await client.getTableInfo('801274027');
-   * console.log('Player ELOs:', tableInfo.data.player);
    */
   async getTableInfo(tableId: string): Promise<GetTableInfoResponse> {
     if (!this.isLoggedIn()) {
@@ -382,7 +362,6 @@ export class BGAClient {
     console.log(`[BGAClient] Fetching table info for table_id=${tableId}`);
 
     try {
-      // Build query parameters
       const params = new URLSearchParams({
         id: tableId,
         'dojo.preventCache': Date.now().toString(),
@@ -390,28 +369,10 @@ export class BGAClient {
 
       const url = `${this.baseUrl}/table/table/tableinfos.html?${params.toString()}`;
 
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:146.0) Gecko/20100101 Firefox/146.0',
-          Accept: '*/*',
-          'Accept-Language': 'en-GB,en;q=0.5',
-          'X-Request-Token': this.session.requestToken,
-          'X-Requested-With': 'XMLHttpRequest',
-          Referer: `${this.baseUrl}/gamereview?table=${tableId}`,
-          Cookie: this.getCookieHeader(),
-        },
+      const tableInfoResponse = await this.browserNavigate<GetTableInfoResponse>(url, {
+        'X-Requested-With': 'XMLHttpRequest',
+        Referer: `${this.baseUrl}/gamereview?table=${tableId}`,
       });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch table info: ${response.status} ${response.statusText}`);
-      }
-
-      // Store cookies to keep session alive
-      this.storeCookiesFromResponse(response);
-
-      const tableInfoResponse = await response.json();
 
       console.log(`[BGAClient] Successfully fetched table info`);
 
@@ -424,15 +385,6 @@ export class BGAClient {
 
   /**
    * Fetch player rankings for a specific game
-   *
-   * @param gameId - BGA game ID (e.g., 1495 for Gaia Project)
-   * @param start - Starting position in rankings (0-based, default: 0)
-   * @param mode - Ranking mode ('elo' for ELO rankings, default: 'elo')
-   * @returns Response containing ranked players list
-   *
-   * @example
-   * const rankings = await client.getRanking(1495, 0, 'elo');
-   * console.log('Top 10 players:', rankings.data.players.slice(0, 10));
    */
   async getRanking(gameId: number, start: number = 0, mode: string = 'elo'): Promise<GetRankingResponse> {
     if (!this.isLoggedIn()) {
@@ -449,27 +401,14 @@ export class BGAClient {
 
     const url = `${this.baseUrl}/gamepanel/gamepanel/getRanking.html`;
 
-    const response = await fetch(url, {
+    const rankingResponse = await this.apiFetch<GetRankingResponse>(url, {
       method: 'POST',
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:146.0) Gecko/20100101 Firefox/146.0',
-        Accept: '*/*',
-        'Accept-Language': 'en-GB,en;q=0.5',
         'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-        'X-Request-Token': this.session.requestToken,
-        Cookie: this.getCookieHeader(),
       },
       body: params.toString(),
     });
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch ranking: ${response.status} ${response.statusText}`);
-    }
-
-    // Store cookies to keep session alive
-    this.storeCookiesFromResponse(response);
-
-    const rankingResponse = await response.json();
     console.log(`[BGAClient] Successfully fetched ranking data`);
 
     return rankingResponse;
@@ -477,15 +416,6 @@ export class BGAClient {
 
   /**
    * Search for a player by name using BGA omnibar search
-   *
-   * @param query - Player name to search for
-   * @returns Response containing matching players
-   *
-   * @example
-   * const searchResults = await client.searchPlayer('AlabeSons');
-   * if (searchResults.data.players.length > 0) {
-   *   console.log('Found player:', searchResults.data.players[0]);
-   * }
    */
   async searchPlayer(query: string): Promise<SearchPlayerResponse> {
     if (!this.isLoggedIn()) {
@@ -500,25 +430,8 @@ export class BGAClient {
 
     const url = `${this.baseUrl}/omnibar/omnibar/search.html?${params.toString()}`;
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:146.0) Gecko/20100101 Firefox/146.0',
-        Accept: '*/*',
-        'Accept-Language': 'en-GB,en;q=0.5',
-        'X-Request-Token': this.session.requestToken,
-        Cookie: this.getCookieHeader(),
-      },
-    });
+    const searchResponse = await this.apiFetch<SearchPlayerResponse>(url);
 
-    if (!response.ok) {
-      throw new Error(`Failed to search player: ${response.status} ${response.statusText}`);
-    }
-
-    // Store cookies to keep session alive
-    this.storeCookiesFromResponse(response);
-
-    const searchResponse = await response.json();
     console.log(`[BGAClient] Found ${searchResponse.data.players.length} players matching "${query}"`);
 
     return searchResponse;

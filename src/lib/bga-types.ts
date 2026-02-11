@@ -27,7 +27,6 @@ export interface LoginResponse {
 
 export interface BGASession {
   requestToken: string;
-  cookies: Map<string, string>;
   userId?: string;
   username?: string;
 }
