@@ -1,41 +1,40 @@
 // Game-related TypeScript types
 
-export interface Game {
+export interface GameResult {
   id: string;
-  gameId: string;
-  playerRace: string;
-  finalScore: number;
-  playerName: string;
-  gameDate: Date;
-  roundCount: number;
+  tableId: number;
   playerCount: number;
-  buildingsData?: BuildingAction[];
-  createdAt: Date;
-  winnerRace?: string;
-  winnerPlayerName?: string;
-  playerElo?: number;
+  winnerName: string;
+  minPlayerElo?: number | null;
+  players: PlayerResult[];
 }
 
-export interface BuildingAction {
-  round: number;
-  structure: string;
-  location?: string;
+export interface PlayerResult {
+  id: string;
+  playerName: string;
+  raceId: number;
+  raceName: string;
+  finalScore: number;
+  playerElo?: number | null;
+  isWinner: boolean;
 }
 
-export interface SearchCriteria {
-  race?: string;
-  playerName?: string;
-  structure?: string;
-  maxRound?: number;
-  playerCount?: number;
+export interface SearchRequest {
   winnerRace?: string;
   winnerPlayerName?: string;
   minPlayerElo?: number;
+  playerNames: string[];
+  playerCounts: number[];
+  structureConditions: StructureCondition[];
 }
 
-export interface SearchResults {
-  games: Game[];
+export interface StructureCondition {
+  race?: string;
+  structure?: string;
+  maxRound?: number;
+}
+
+export interface SearchResponse {
+  games: GameResult[];
   total: number;
-  page: number;
-  pageSize: number;
 }

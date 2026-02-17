@@ -1,25 +1,43 @@
 'use client';
 
 import { useState } from 'react';
-import type { SearchCriteria } from '@/types/game';
+import type { SearchRequest, StructureCondition } from '@/types/game';
+
+interface FormState {
+  winnerRace?: string;
+  winnerPlayerName?: string;
+  minPlayerElo?: number;
+  race?: string;
+  structure?: string;
+  maxRound?: number;
+  playerCount?: number;
+  playerName?: string;
+}
 
 interface SearchFormProps {
-  onSearch: (criteria: SearchCriteria) => void;
+  onSearch: (req: SearchRequest) => void;
   isLoading?: boolean;
 }
 
 export default function SearchForm({ onSearch, isLoading = false }: SearchFormProps) {
-  const [criteria, setCriteria] = useState<SearchCriteria>({});
+  const [criteria, setCriteria] = useState<FormState>({});
   const [selectedLevel, setSelectedLevel] = useState<string>('');
 
   // State for added conditions
   const [playerNameConditions, setPlayerNameConditions] = useState<string[]>([]);
-  const [structureConditions, setStructureConditions] = useState<Array<{race?: string, structure: string, maxRound?: number}>>([]);
+  const [structureConditions, setStructureConditions] = useState<StructureCondition[]>([]);
   const [playerCountConditions, setPlayerCountConditions] = useState<number[]>([]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSearch(criteria);
+    onSearch({
+      winnerRace: criteria.winnerRace,
+      winnerPlayerName: criteria.winnerPlayerName,
+      minPlayerElo: criteria.minPlayerElo,
+      playerNames: playerNameConditions,
+      playerCounts: playerCountConditions,
+      structureConditions,
+    });
   };
 
   const handleReset = () => {
@@ -62,7 +80,7 @@ export default function SearchForm({ onSearch, isLoading = false }: SearchFormPr
               <option value="Ivits">Ivits</option>
               <option value="Geodens">Geodens</option>
               <option value="Bal T'aks">Bal T&apos;aks</option>
-              <option value="Firaks">Firaks</option>
+              <option value="Firacs">Firacs</option>
               <option value="Bescods">Bescods</option>
               <option value="Nevlas">Nevlas</option>
               <option value="Itars">Itars</option>
@@ -181,7 +199,7 @@ export default function SearchForm({ onSearch, isLoading = false }: SearchFormPr
                 <option value="Ivits">Ivits</option>
                 <option value="Geodens">Geodens</option>
                 <option value="Bal T'aks">Bal T&apos;aks</option>
-                <option value="Firaks">Firaks</option>
+                <option value="Firacs">Firacs</option>
                 <option value="Bescods">Bescods</option>
                 <option value="Nevlas">Nevlas</option>
                 <option value="Itars">Itars</option>
@@ -234,14 +252,14 @@ export default function SearchForm({ onSearch, isLoading = false }: SearchFormPr
               type="button"
               onClick={() => {
                 if (criteria.structure || criteria.race) {
-                  const newCondition = {
+                  const newCondition: StructureCondition = {
                     race: criteria.race,
                     structure: criteria.structure,
-                    maxRound: criteria.maxRound
+                    maxRound: criteria.maxRound,
                   };
                   setStructureConditions([...structureConditions, newCondition]);
-                  // Create a new criteria object without the fraction config fields
                   const { race, structure, maxRound, ...restCriteria } = criteria;
+                  void race; void structure; void maxRound;
                   setCriteria(restCriteria);
                 }
               }}
