@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/db';
 import SearchSection from './SearchSection';
 
+export const dynamic = 'force-dynamic';
+
 export default async function Home() {
   const gameCount = await prisma.game.count();
 
