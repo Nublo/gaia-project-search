@@ -54,6 +54,24 @@ const races: { name: string; file: string }[] = [
 
 const raceRows = [races.slice(0, 7), races.slice(7)];
 
+// Factions sharing a home planet — can't coexist in the same game
+const FACTION_PAIRS: Record<string, string> = {
+  'Terrans':       'Lantids',
+  'Lantids':       'Terrans',
+  'Xenos':         'Gleens',
+  'Gleens':        'Xenos',
+  'Taklons':       'Ambas',
+  'Ambas':         'Taklons',
+  'Hadsch Hallas': 'Ivits',
+  'Ivits':         'Hadsch Hallas',
+  'Geodens':       "Bal T'aks",
+  "Bal T'aks":     'Geodens',
+  'Firacs':        'Bescods',
+  'Bescods':       'Firacs',
+  'Nevlas':        'Itars',
+  'Itars':         'Nevlas',
+};
+
 function getRaceFile(name: string): string {
   return races.find((r) => r.name === name)?.file ?? '';
 }
@@ -151,11 +169,15 @@ export default function SearchForm({ onSearch, isLoading = false }: SearchFormPr
     setFinalScoringConditions([]);
   };
 
+  function defaultFractionConfig(name: string): FractionConfig {
+    return { race: name, conditions: [], researchConditions: [], advancedTechs: [], standardTechs: [], tempStructure: 'knowledge-academy', tempMaxRound: 1, tempResearchTrack: 1, tempResearchMinLevel: 4, tempResearchMaxRound: 6, tempPlayedBy: '' };
+  }
+
   function toggleFraction(name: string) {
     if (fractionConfigs.some((fc) => fc.race === name)) {
       setFractionConfigs(fractionConfigs.filter((fc) => fc.race !== name));
-    } else {
-      setFractionConfigs([...fractionConfigs, { race: name, conditions: [], researchConditions: [], advancedTechs: [], standardTechs: [], tempStructure: 'knowledge-academy', tempMaxRound: 1, tempResearchTrack: 1, tempResearchMinLevel: 4, tempResearchMaxRound: 6, tempPlayedBy: '' }]);
+    } else if (fractionConfigs.length < 4) {
+      setFractionConfigs([...fractionConfigs, defaultFractionConfig(name)]);
     }
   }
 
@@ -305,23 +327,25 @@ export default function SearchForm({ onSearch, isLoading = false }: SearchFormPr
               {(Object.keys(FINAL_SCORING_NAMES) as unknown as number[]).map((id) => {
                 const numId = Number(id);
                 const isSelected = finalScoringConditions.includes(numId);
+                const isDisabled = !isSelected && finalScoringConditions.length >= 2;
                 return (
                   <button
                     key={numId}
                     type="button"
-                    title={getFinalScoringName(numId)}
+                    title={isDisabled ? 'Deselect a mission first' : getFinalScoringName(numId)}
+                    disabled={isDisabled}
                     onClick={() => {
                       if (isSelected) {
                         setFinalScoringConditions(finalScoringConditions.filter((x) => x !== numId));
-                      } else if (finalScoringConditions.length < 2) {
-                        setFinalScoringConditions([...finalScoringConditions, numId]);
                       } else {
-                        setFinalScoringConditions([finalScoringConditions[1], numId]);
+                        setFinalScoringConditions([...finalScoringConditions, numId]);
                       }
                     }}
                     className={`rounded-md overflow-hidden transition-all ${
                       isSelected
                         ? 'ring-4 ring-blue-500 ring-offset-2'
+                        : isDisabled
+                        ? 'opacity-20 cursor-not-allowed'
                         : 'opacity-60 hover:opacity-90'
                     }`}
                   >
@@ -437,15 +461,24 @@ export default function SearchForm({ onSearch, isLoading = false }: SearchFormPr
           <div className="flex flex-wrap gap-2 mb-4">
             {races.map(({ name, file }) => {
               const isActive = fractionConfigs.some((fc) => fc.race === name);
+              const pairedName = FACTION_PAIRS[name];
+              const pairSelected = pairedName ? fractionConfigs.some((fc) => fc.race === pairedName) : false;
+              const isDisabled = !isActive && (fractionConfigs.length >= 4 || pairSelected);
+              const disabledTitle = pairSelected
+                ? `Can't pick — ${pairedName} shares the same home planet`
+                : 'Deselect a faction first';
               return (
                 <button
                   key={name}
                   type="button"
-                  title={name}
+                  title={isDisabled ? disabledTitle : name}
                   onClick={() => toggleFraction(name)}
+                  disabled={isDisabled}
                   className={`rounded-md overflow-hidden transition-all ${
                     isActive
                       ? 'ring-4 ring-blue-500 ring-offset-2'
+                      : isDisabled
+                      ? 'opacity-20 cursor-not-allowed'
                       : 'opacity-60 hover:opacity-90'
                   }`}
                 >
