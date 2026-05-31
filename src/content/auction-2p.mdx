@@ -1,0 +1,71 @@
+# BGA Auction Rules
+
+There is a lot of confusion about how BGA auctions work. This page tries to provide a detailed explanation with examples. Without further ado, let's start!
+
+## 2 player game
+
+We have **Player_A** and **Player_B**. Each player can bid some amount of VPs to a faction. There are 2 possible scenarios here:
+
+- They bid higher for different factions (**Scenario A**)
+- They both bid higher on the same faction (**Scenario B**)
+
+### Scenario A
+
+| Player   | Ambass | Firaks | Cost |
+|----------|--------|--------|------|
+| Player_A |   0 VP |  20 VP | 0 VP |
+| Player_B |  10 VP |  0 VP  | 0 VP |
+
+Both players prefer to play with different factions => they both are paying **0 VP** to get desired faction.
+Then BGA framework adds 10 VP to each => game starts with both players having 10 VP.
+
+### Scenario B
+
+| Player   | Ambass | Firaks | Cost  |
+|----------|--------|--------|-------|
+| Player_A |   0 VP |  20 VP | 10 VP |
+| Player_B |   0 VP |  10 VP | 0 VP  |
+
+Both players think Firaks are better. **Player_A** agrees to pay up to 20 VP, **Player_B** agrees to pay up to 10 VP. **Player_A** is getting Firaks and pays for them 10 VP (bid of the **Player_B**).
+
+It is now time to jump to a tricky territory :)
+
+### Bid values relate to each other
+
+| Player   | Ambass | Firaks | Cost  |
+|----------|--------|--------|-------|
+| Player_A |   0 VP |  20 VP | 10 VP |
+| Player_B | 100 VP | 110 VP | 0 VP  |
+
+When bids are calculated only relative difference between bids is checked. In the above example **Player_B** is ready to pay up to 110 VP to get Firaks and 100 VP for Ambass. You can read it as:
+
+```
+Firaks are stronger than Ambass. I am ready to pay (110-100) = 10 VP for Firaks comparing to Ambass
+```
+
+In other words, the bids for **Player_B** can be simplified to:
+
+| Player   | Ambass | Firaks | Cost  |
+|----------|--------|--------|-------|
+| Player_B | 0 VP   | 10 VP  | 0 VP  |
+
+It means that **Player_B** gets Ambass, and **Player_A** pays 10 VP for Firaks. Even though **Player_B** *bid* **110 VP** for Firaks.
+
+To make your life easier always bid 0 on the weakest faction. This applies to 3 and 4 player games as well.
+
+### VP price
+
+If your **RELATIVE** bid is higher than the other player's bid, you will pay the amount of VP the other player bid. Let's look at Scenario B again:
+
+| Player   | Ambass | Firaks | Cost  |
+|----------|--------|--------|-------|
+| Player_A |   0 VP |  20 VP | 10 VP |
+| Player_B |   0 VP |  10 VP | 0 VP  |
+
+If **Player_A** bids higher than **Player_B**, it doesn't matter by how much — they will always pay 10 VP (the bid of **Player_B**).
+
+## Key points from the article
+
+- When both players bid higher on different factions => nobody pays VP
+- Bids are relative to each other (you should always bid 0 on the weakest faction to simplify your calculations)
+- Your bids are telling everyone how much VP are you ready to pay in comparison to other factions. You might end up paying less than your bid.
