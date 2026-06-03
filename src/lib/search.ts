@@ -296,7 +296,6 @@ export async function searchGames(req: SearchRequest): Promise<SearchGamesResult
         playerId: true,
         playerName: true,
         raceId: true,
-        raceName: true,
         finalScore: true,
         playerElo: true,
         isWinner: true,
@@ -311,6 +310,9 @@ export async function searchGames(req: SearchRequest): Promise<SearchGamesResult
       },
     },
   } as const;
+
+  const addRaceNames = (games: { players: { raceId: number; [key: string]: unknown }[]; [key: string]: unknown }[]) =>
+    games.map((g) => ({ ...g, players: g.players.map((p) => ({ ...p, raceName: RACE_NAMES[p.raceId as keyof typeof RACE_NAMES] ?? `Unknown (${p.raceId})` })) }));
 
   const where = andConditions.length > 0 ? { AND: andConditions } : {};
 
@@ -370,7 +372,7 @@ export async function searchGames(req: SearchRequest): Promise<SearchGamesResult
     const gamesById = new Map(gamesData.map((g) => [g.tableId, g]));
     const games = sortedIds.map((id) => gamesById.get(id)).filter((g): g is NonNullable<typeof g> => g != null);
 
-    return { games: games as GameResult[], queryMs: Math.round(performance.now() - dbStart) };
+    return { games: addRaceNames(games) as GameResult[], queryMs: Math.round(performance.now() - dbStart) };
   }
 
   const games = await prisma.game.findMany({
@@ -380,7 +382,7 @@ export async function searchGames(req: SearchRequest): Promise<SearchGamesResult
     orderBy: { tableId: 'desc' },
   });
 
-  return { games: games as GameResult[], queryMs: Math.round(performance.now() - dbStart) };
+  return { games: addRaceNames(games) as GameResult[], queryMs: Math.round(performance.now() - dbStart) };
 }
 
 const LEADERBOARD_COLUMNS = {
@@ -413,7 +415,6 @@ export async function getLeaderboardGames(limit = 3): Promise<LeaderboardSection
         playerId: true,
         playerName: true,
         raceId: true,
-        raceName: true,
         finalScore: true,
         playerElo: true,
         isWinner: true,
@@ -428,6 +429,9 @@ export async function getLeaderboardGames(limit = 3): Promise<LeaderboardSection
       },
     },
   } as const;
+
+  const addRaceNamesLocal = (games: { players: { raceId: number; [key: string]: unknown }[]; [key: string]: unknown }[]) =>
+    games.map((g) => ({ ...g, players: g.players.map((p) => ({ ...p, raceName: RACE_NAMES[p.raceId as keyof typeof RACE_NAMES] ?? `Unknown (${p.raceId})` })) }));
 
   const categories: { key: LeaderboardCategory; label: string }[] = [
     { key: 'qicPoints', label: 'QIC Points' },
@@ -460,7 +464,7 @@ export async function getLeaderboardGames(limit = 3): Promise<LeaderboardSection
         .map((id) => gamesById.get(id))
         .filter((g): g is NonNullable<typeof g> => g != null);
 
-      return { category: key, label, games: games as GameResult[] };
+      return { category: key, label, games: addRaceNamesLocal(games) as GameResult[] };
     })
   );
 
@@ -760,7 +764,7 @@ export async function getAnalytics(req: SearchRequest, selectedGroup?: string[])
     select: {
       playerCount: true,
       players: {
-        select: { playerName: true, raceName: true, finalScore: true, playerElo: true },
+        select: { playerName: true, raceId: true, finalScore: true, playerElo: true },
       },
     },
   });
@@ -796,7 +800,7 @@ export async function getAnalytics(req: SearchRequest, selectedGroup?: string[])
     for (const targetPlayer of scoringPlayers) {
       const place = rankMap.get(targetPlayer.playerName) ?? 1;
       const f = playerCount - place;
-      const raceName = targetPlayer.raceName;
+      const raceName = RACE_NAMES[targetPlayer.raceId as keyof typeof RACE_NAMES] ?? `Unknown (${targetPlayer.raceId})`;
 
       const existing = factionAccum.get(raceName) ?? { scoreSum: 0, ptsSum: 0, eloSum: 0, eloCount: 0, count: 0, places: [0, 0, 0, 0] as [number, number, number, number] };
       const newPlaces: [number, number, number, number] = [...existing.places] as [number, number, number, number];

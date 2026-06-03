@@ -11,8 +11,6 @@ datasource db {
 model Game {
   id           String   @id @default(cuid())
   tableId      Int      @unique @map("table_id")
-  gameId       String   @default("1495") @map("game_id")
-  gameName     String   @default("gaiaproject") @map("game_name")
   playerCount  Int      @map("player_count")
   winnerName   String   @map("winner_name")
   minPlayerElo  Int?     @map("min_player_elo")
@@ -35,7 +33,6 @@ model Player {
   playerId      Int     @map("player_id")
   playerName    String  @map("player_name")
   raceId        Int     @map("race_id")
-  raceName      String  @map("race_name")
   finalScore    Int     @map("final_score")
   playerElo     Int?    @map("player_elo")
   isWinner      Boolean @default(false) @map("is_winner")
@@ -51,7 +48,6 @@ model Player {
 
   @@index([playerName])
   @@index([raceId])
-  @@index([raceName])
   @@index([finalScore])
   @@index([playerElo])
   @@index([tableId])

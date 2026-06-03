@@ -16,8 +16,6 @@ export async function storeGame(parsedGame: ParsedGameData) {
     const game = await tx.game.create({
       data: {
         tableId,
-        gameId: parsedGame.gameId.toString(),
-        gameName: parsedGame.gameName,
         playerCount: parsedGame.playerCount,
         winnerName: parsedGame.winnerName,
         minPlayerElo: parsedGame.minPlayerElo,
@@ -36,7 +34,6 @@ export async function storeGame(parsedGame: ParsedGameData) {
             playerId: player.playerId,
             playerName: player.playerName,
             raceId: player.raceId,
-            raceName: player.raceName,
             finalScore: player.finalScore,
             playerElo: player.playerElo,
             isWinner: player.isWinner,

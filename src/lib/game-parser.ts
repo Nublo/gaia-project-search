@@ -32,8 +32,6 @@ const BGA_ELO_OFFSET = 1300;
 export interface ParsedGameData {
   // Game identification
   tableId: string;
-  gameId: number;
-  gameName: string;
 
   // Players and races (includes building data)
   playerCount: number;
@@ -117,7 +115,6 @@ export class GameLogParser {
             playerId,
             playerName,
             raceId,
-            raceName: getRaceName(raceId),
             finalScore: 0, // Will be updated when parsing game end
             startingScore: event.args.player?.score ?? 10,
             playerElo: playerEloMap.get(playerId) || null, // Get normalized ELO from table info
@@ -390,8 +387,6 @@ export class GameLogParser {
     // Build the parsed data object
     const parsedData: ParsedGameData = {
       tableId: gameTable.table_id,
-      gameId: parseInt(gameTable.game_id),
-      gameName: gameTable.game_name,
       playerCount: players.length,
       players,
       winnerName,

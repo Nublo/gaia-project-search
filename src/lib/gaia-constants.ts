@@ -190,7 +190,6 @@ export interface PlayerRaceMapping {
   playerId: number;
   playerName: string;
   raceId: number;
-  raceName: string;
   finalScore: number;
   startingScore: number;   // VP at game start (from notifyChooseRace)
   playerElo: number | null; // Normalized ELO (with BGA offset subtracted)
