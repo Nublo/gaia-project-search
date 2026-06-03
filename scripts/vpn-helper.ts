@@ -44,7 +44,7 @@ export async function ensureVpnConnected(): Promise<void> {
 
   if (!interactive) {
     console.error('⚠️  VPN not connected (unattended mode). Aborting — will retry on next run.');
-    process.exit(1);
+    process.exit(2);
   }
 
   console.log('⚠️  VPN not detected. Opening CyberGhost VPN...');
