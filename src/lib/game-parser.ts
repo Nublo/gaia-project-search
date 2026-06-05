@@ -25,6 +25,17 @@ import { GetGameLogResponse, GameTableInfo, GetTableInfoResponse } from './bga-t
  */
 const BGA_ELO_OFFSET = 1300;
 
+/**
+ * Determine whether a game used the faction auction variant.
+ *
+ * In a non-auction game every player starts with exactly 10 VP. With the
+ * auction variant players bid VP for their factions, so at least one player
+ * starts with a different amount. Shared by the parser and the backfill script.
+ */
+export function computeIsAuction(players: { startingScore: number }[]): boolean {
+  return players.some((p) => Number(p.startingScore) !== 10);
+}
+
 // ============================================================================
 // PARSED GAME DATA
 // ============================================================================
@@ -39,6 +50,7 @@ export interface ParsedGameData {
   minPlayerElo: number | null; // Minimum ELO among all players (normalized)
   finalScorings: number[]; // IDs of the 2 active final scoring missions (1–6)
   isComplete: boolean; // True if all 6 rounds were played (notifyRoundEnd roundNum===6 found)
+  isAuction: boolean; // True if faction auction was used (any player started with ≠ 10 VP)
   players: PlayerRaceMapping[];
 
   // Raw data for future parsing
@@ -393,6 +405,7 @@ export class GameLogParser {
       minPlayerElo,
       finalScorings,
       isComplete,
+      isAuction: computeIsAuction(players),
       rawLog: logResponse,
     };
 

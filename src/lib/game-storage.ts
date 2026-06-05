@@ -21,6 +21,7 @@ export async function storeGame(parsedGame: ParsedGameData) {
         minPlayerElo: parsedGame.minPlayerElo,
         finalScorings: parsedGame.finalScorings,
         isComplete: parsedGame.isComplete,
+        isAuction: parsedGame.isAuction,
         rawGameLog: parsedGame as any,
       }
     });

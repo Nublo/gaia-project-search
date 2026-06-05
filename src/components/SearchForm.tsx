@@ -11,6 +11,7 @@ interface FormState {
   winnerRace?: string;
   winnerPlayerName?: string;
   minPlayerElo?: number;
+  isAuction?: boolean;
   playerCount?: number;
   playerName?: string;
 }
@@ -140,6 +141,7 @@ export default function SearchForm({ onSearch, isLoading = false }: SearchFormPr
       winnerRace: criteria.winnerRace,
       winnerPlayerName: criteria.winnerPlayerName,
       minPlayerElo: criteria.minPlayerElo,
+      isAuction: criteria.isAuction,
       playerNames: playerNameConditions,
       playerCounts: playerCountConditions,
       structureConditions,
@@ -362,7 +364,7 @@ export default function SearchForm({ onSearch, isLoading = false }: SearchFormPr
           </div>
 
           {/* Sort by */}
-          <div className="md:col-span-2">
+          <div>
             <label htmlFor="sortByDropdown" className="block text-sm font-medium text-gray-700 mb-2">
               Sort by
             </label>
@@ -378,6 +380,26 @@ export default function SearchForm({ onSearch, isLoading = false }: SearchFormPr
               <option value="totalScoredPoints">Scored Points</option>
               <option value="finalScore">Total Points</option>
               <option value="factionCost">Faction Cost (VP)</option>
+            </select>
+          </div>
+
+          {/* Auction */}
+          <div>
+            <label htmlFor="auctionDropdown" className="block text-sm font-medium text-gray-700 mb-2">
+              Auction
+            </label>
+            <select
+              id="auctionDropdown"
+              value={criteria.isAuction === true ? 'true' : criteria.isAuction === false ? 'false' : ''}
+              onChange={(e) => {
+                const v = e.target.value;
+                setCriteria({ ...criteria, isAuction: v === 'true' ? true : v === 'false' ? false : undefined });
+              }}
+              className={inputClassName}
+            >
+              <option value="">Any</option>
+              <option value="true">Auction required</option>
+              <option value="false">Non auction</option>
             </select>
           </div>
 

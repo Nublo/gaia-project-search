@@ -26,6 +26,7 @@ export async function searchGames(req: SearchRequest): Promise<SearchGamesResult
     winnerRace,
     winnerPlayerName,
     minPlayerElo,
+    isAuction,
     playerNames = [],
     playerCounts = [],
     structureConditions = [],
@@ -40,6 +41,10 @@ export async function searchGames(req: SearchRequest): Promise<SearchGamesResult
 
   if (minPlayerElo) {
     andConditions.push({ minPlayerElo: { gte: minPlayerElo } });
+  }
+
+  if (isAuction !== undefined) {
+    andConditions.push({ isAuction });
   }
 
   if (winnerPlayerName) {
@@ -290,6 +295,7 @@ export async function searchGames(req: SearchRequest): Promise<SearchGamesResult
     winnerName: true,
     minPlayerElo: true,
     finalScorings: true,
+    isAuction: true,
     players: {
       select: {
         id: true,
@@ -499,6 +505,7 @@ export async function getAnalytics(req: SearchRequest, selectedGroup?: string[])
     winnerRace,
     winnerPlayerName,
     minPlayerElo,
+    isAuction,
     playerNames = [],
     playerCounts = [],
     structureConditions = [],
@@ -520,6 +527,10 @@ export async function getAnalytics(req: SearchRequest, selectedGroup?: string[])
 
   if (minPlayerElo) {
     andConditions.push({ minPlayerElo: { gte: minPlayerElo } });
+  }
+
+  if (isAuction !== undefined) {
+    andConditions.push({ isAuction });
   }
 
   if (winnerPlayerName) {

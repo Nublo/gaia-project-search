@@ -901,3 +901,64 @@ describe('GameLogParser — final scoring missions', () => {
     expect(result.finalScorings).toHaveLength(0)
   })
 })
+
+// ============================================================================
+// TESTS: AUCTION DETECTION
+// ============================================================================
+
+describe('GameLogParser — auction detection', () => {
+  function chooseRaceWithScore(playerId: number, playerName: string, raceId: number, score: number) {
+    return {
+      type: 'notifyChooseRace',
+      args: {
+        playerId: String(playerId),
+        player_name: playerName,
+        raceId: String(raceId),
+        player: { score, research: [0, 0, 0, 0, 0, 0, 0] },
+      },
+    }
+  }
+
+  function buildGame(events: any[]) {
+    return GameLogParser.parseGameLog(makeGameTable(), makeLogResponse(events), makeTableInfo({ players: [] }))
+  }
+
+  it('marks game as non-auction when every player starts with 10 VP', () => {
+    const result = buildGame([
+      chooseRaceWithScore(1, 'Alice', 1, 10),
+      chooseRaceWithScore(2, 'Bob', 2, 10),
+      roundEndEvent(6),
+      gameEndEvent([
+        { id: '1', name: 'Alice', score: '120' },
+        { id: '2', name: 'Bob', score: '110' },
+      ]),
+    ])
+    expect(result.isAuction).toBe(false)
+  })
+
+  it('marks game as auction when any player starts with a non-10 VP total', () => {
+    const result = buildGame([
+      chooseRaceWithScore(1, 'Alice', 1, 10),
+      chooseRaceWithScore(2, 'Bob', 2, 35),
+      roundEndEvent(6),
+      gameEndEvent([
+        { id: '1', name: 'Alice', score: '120' },
+        { id: '2', name: 'Bob', score: '110' },
+      ]),
+    ])
+    expect(result.isAuction).toBe(true)
+  })
+
+  it('defaults missing starting score to 10 (treated as non-auction)', () => {
+    const result = buildGame([
+      chooseRaceEvent(1, 'Alice', 1), // helper omits an explicit bid → score 10
+      chooseRaceEvent(2, 'Bob', 2),
+      roundEndEvent(6),
+      gameEndEvent([
+        { id: '1', name: 'Alice', score: '120' },
+        { id: '2', name: 'Bob', score: '110' },
+      ]),
+    ])
+    expect(result.isAuction).toBe(false)
+  })
+})

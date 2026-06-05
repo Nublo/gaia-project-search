@@ -8,6 +8,7 @@ export interface GameResult {
   minPlayerElo?: number | null;
   finalScorings: number[];
   isComplete: boolean;
+  isAuction: boolean;
   players: PlayerResult[];
 }
 
@@ -49,6 +50,7 @@ export interface SearchRequest {
   winnerRace?: string;
   winnerPlayerName?: string;
   minPlayerElo?: number;
+  isAuction?: boolean;
   playerNames: string[][];
   playerCounts: number[];
   structureConditions: StructureCondition[];

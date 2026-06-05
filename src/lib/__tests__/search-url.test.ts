@@ -249,3 +249,34 @@ describe('roundtrip', () => {
     expect(result.researchConditions[0].race).toBeUndefined();
   });
 });
+
+describe('isAuction', () => {
+  it('omits isAuction from the query when undefined', () => {
+    expect(serializeSearchRequest(EMPTY)).not.toContain('isAuction');
+  });
+
+  it('serializes isAuction=true', () => {
+    expect(serializeSearchRequest({ ...EMPTY, isAuction: true })).toBe('isAuction=true');
+  });
+
+  it('serializes isAuction=false', () => {
+    expect(serializeSearchRequest({ ...EMPTY, isAuction: false })).toBe('isAuction=false');
+  });
+
+  it('deserializes isAuction=true to boolean true', () => {
+    expect(deserializeSearchRequest({ isAuction: 'true' }).isAuction).toBe(true);
+  });
+
+  it('deserializes isAuction=false to boolean false', () => {
+    expect(deserializeSearchRequest({ isAuction: 'false' }).isAuction).toBe(false);
+  });
+
+  it('leaves isAuction undefined when absent', () => {
+    expect(deserializeSearchRequest({}).isAuction).toBeUndefined();
+  });
+
+  it('roundtrips both boolean values', () => {
+    expect(roundtrip({ ...EMPTY, isAuction: true }).isAuction).toBe(true);
+    expect(roundtrip({ ...EMPTY, isAuction: false }).isAuction).toBe(false);
+  });
+});
