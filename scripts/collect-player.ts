@@ -5,6 +5,18 @@ import * as dotenv from 'dotenv';
 
 dotenv.config();
 
+/**
+ * Exit codes (consumed by collect-daily.sh to decide whether to keep going):
+ *   0 — reached last page (player fully exhausted, nothing left to fetch)
+ *   1 — unexpected error
+ *   2 — VPN not connected (set in vpn-helper)
+ *   3 — BGA rate limit hit for this account (stop using these credentials today)
+ *   4 — stopped early for another reason (bot detection / repeated page failures)
+ */
+const EXIT_EXHAUSTED = 0;
+const EXIT_RATE_LIMITED = 3;
+const EXIT_STOPPED_EARLY = 4;
+
 async function collectPlayer() {
   const playerInput = process.argv[2];
 
@@ -117,12 +129,21 @@ async function collectPlayer() {
     console.log(stats.rateLimited ? `⏸️  Collection paused (rate limited). Run again to continue.` : `✅ Collection Complete!`);
     console.log('='.repeat(70));
 
+    // Signal the outcome to the caller via exit code so the daily script can decide
+    // whether to move on to the next player (exhausted) or stop the account (rate limited).
+    if (stats.rateLimited) {
+      process.exitCode = EXIT_RATE_LIMITED;
+    } else if (stats.reachedLastPage) {
+      process.exitCode = EXIT_EXHAUSTED;
+    } else {
+      process.exitCode = EXIT_STOPPED_EARLY;
+    }
   } catch (error) {
     console.error('\n❌ Collection failed:', error);
     if (error instanceof Error) {
       console.error('Stack trace:', error.stack);
     }
-    process.exit(1);
+    process.exitCode = 1;
   } finally {
     await client.close();
   }

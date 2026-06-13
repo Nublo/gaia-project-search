@@ -10,6 +10,8 @@ export interface CollectionStats {
   skippedGames: number;
   failedGames: number;
   rateLimited: boolean;
+  /** True only when we cleanly paged through to the last page (player fully exhausted). */
+  reachedLastPage: boolean;
   errors: Array<{ tableId: string; error: string }>;
 }
 
@@ -53,6 +55,7 @@ export class GameCollector {
       skippedGames: 0,
       failedGames: 0,
       rateLimited: false,
+      reachedLastPage: false,
       errors: [],
     };
 
@@ -76,6 +79,7 @@ export class GameCollector {
 
         if (games.length === 0) {
           this.options.onProgress(`   ✅ No more games (reached end)\n`);
+          stats.reachedLastPage = true;
           break;
         }
 
@@ -161,6 +165,7 @@ export class GameCollector {
         // Check if this was the last page
         if (games.length < 10) {
           this.options.onProgress(`   ✅ Reached last page (${games.length} games)\n`);
+          stats.reachedLastPage = true;
           break;
         }
 
