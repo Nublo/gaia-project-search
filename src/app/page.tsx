@@ -6,7 +6,10 @@ import SearchSection from './SearchSection';
 // The finished-game count changes only when the daily collector adds games, so
 // a stale value is harmless. Render the page statically and revalidate daily in
 // the background — visitors never wait on a DB query (or a Neon cold start).
-export const revalidate = CACHE_REVALIDATE_SECONDS;
+// NOTE: route segment config must be a statically-analyzable literal — Next.js
+// can't resolve an imported constant here, so this is hardcoded to match
+// CACHE_REVALIDATE_SECONDS (86400).
+export const revalidate = 86400;
 
 const getGameCount = unstable_cache(
   () => prisma.game.count({ where: { isComplete: true } }),
