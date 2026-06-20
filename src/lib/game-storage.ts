@@ -75,6 +75,23 @@ export async function gameExists(tableId: number): Promise<boolean> {
 }
 
 /**
+ * Mark a player as fully exhausted — we have paged through to the last page of
+ * their finished games, so there is nothing left to fetch from BGA.
+ *
+ * Idempotent: safe to call on every run that reaches the last page.
+ *
+ * @param playerId - BGA player ID
+ */
+export async function markPlayerReachedEnd(playerId: number) {
+  const collectionDate = new Date();
+  return prisma.playerCollectionState.upsert({
+    where:  { playerId },
+    create: { playerId, reachEnd: true, collectionDate },
+    update: { reachEnd: true, collectionDate },
+  });
+}
+
+/**
  * Get a game and all its players from the database.
  *
  * @param tableId - BGA table ID (unique game instance identifier)

@@ -1,5 +1,6 @@
 import { BGAClient } from '../src/lib/bga-client';
 import { GameCollector, RateLimitError, CollectionStats } from '../src/lib/game-collector';
+import { markPlayerReachedEnd } from '../src/lib/game-storage';
 import { ensureVpnConnected } from './vpn-helper';
 import * as dotenv from 'dotenv';
 
@@ -134,6 +135,8 @@ async function collectPlayer() {
     if (stats.rateLimited) {
       process.exitCode = EXIT_RATE_LIMITED;
     } else if (stats.reachedLastPage) {
+      // Persist that this player's history is fully exhausted so future runs can skip them.
+      await markPlayerReachedEnd(playerId);
       process.exitCode = EXIT_EXHAUSTED;
     } else {
       process.exitCode = EXIT_STOPPED_EARLY;

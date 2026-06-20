@@ -65,3 +65,11 @@ model Player {
   @@index([factionCost])
   @@map("players")
 }
+
+model PlayerCollectionState {
+  playerId       Int       @id @map("player_id")
+  reachEnd       Boolean   @default(false) @map("reach_end")
+  collectionDate DateTime? @map("collection_date")
+
+  @@map("player_collection_state")
+}
