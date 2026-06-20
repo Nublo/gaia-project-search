@@ -108,7 +108,6 @@ src/
     └── game.ts                   # GameResult, PlayerResult, SearchRequest, etc.
 scripts/
 ├── collect-player.ts             # Collect games for a specific player
-├── collect-top10.ts              # Collect games for top 10 ranked players
 └── push-to-remote.ts             # Push new local games to remote (Neon) DB
 prisma/
 └── schema.prisma
@@ -152,9 +151,6 @@ POSTGRES_PRISMA_URL=<url> POSTGRES_URL_NON_POOLING=<url> npx prisma migrate depl
 npx tsx scripts/collect-player.ts Nigator
 npx tsx scripts/collect-player.ts 83983741  # by BGA player ID
 
-# Collect games for top 10 ranked players
-npx tsx scripts/collect-top10.ts
-
 # Override BGA credentials
 BGA_USERNAME=user2 BGA_PASSWORD=pass2 npx tsx scripts/collect-player.ts Nigator
 
@@ -166,7 +162,7 @@ npx tsx scripts/push-to-remote.ts
 
 ## Automated Daily Collection
 
-`scripts/collect-daily.sh` runs automatically via launchd (macOS). It picks a random player from `players_to_collect.txt`, runs `collect-player.ts`, then `push-to-remote.ts`. Each run shifts the next scheduled time +10 min to avoid BGA rate limit collisions.
+`scripts/collect-daily.sh` runs automatically via launchd (macOS). It picks eligible players from the `PlayerCollectionState` table (via `scripts/list-collectable-players.ts`: `reachEnd = false` OR `collectionDate` older than 1 month), runs `collect-player.ts` for them, then `push-to-remote.ts`. Each run shifts the next scheduled time +10 min to avoid BGA rate limit collisions.
 
 - **State file**: `~/.config/bgagaia/state.json` — contains `nextRunAt` and `lastRunDate`; edit `nextRunAt` to reset the schedule
 - **Logs**: `logs/collect-YYYY-MM-DD.log`
