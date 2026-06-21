@@ -277,7 +277,20 @@ export default function SearchForm({ onSearch, isLoading = false }: SearchFormPr
 
   return (
     <form onSubmit={handleSubmit} className="w-full max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold mb-6 text-gray-800">Search Gaia Project Games</h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-gray-800">Search Gaia Project Games</h2>
+        <a
+          href="https://youtu.be/2IvyBkVahBo?si=ea_GtfIn6MzEirn7"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 rounded-full bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-red-700"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 fill-current">
+            <path d="M8 5v14l11-7z" />
+          </svg>
+          Watch tutorial
+        </a>
+      </div>
 
       {/* Section 1: Single Selection Filters */}
       <div className="mb-6">
