@@ -23,8 +23,15 @@ describe('getRaceName', () => {
     expect(getRaceName(RaceId.ITARS)).toBe('Itars')
   })
 
-  it('returns all 14 races', () => {
-    expect(Object.keys(RACE_NAMES)).toHaveLength(14)
+  it('returns all 18 races (14 base game + 4 Lost Fleet)', () => {
+    expect(Object.keys(RACE_NAMES)).toHaveLength(18)
+  })
+
+  it('returns correct names for the Lost Fleet expansion races', () => {
+    expect(getRaceName(RaceId.TINKEROIDS)).toBe('Tinkeroids')
+    expect(getRaceName(RaceId.DARKANIANS)).toBe('Darkanians')
+    expect(getRaceName(RaceId.MOWEYDS)).toBe('Moweyds')
+    expect(getRaceName(RaceId.SPACE_GIANTS)).toBe('Space Giants')
   })
 
   it('returns fallback string for unknown race ID', () => {

@@ -54,7 +54,26 @@ const races: { name: string; file: string }[] = [
   { name: 'Itars',         file: 'Itars_tile.png' },
 ];
 
-const raceRows = [races.slice(0, 7), races.slice(7)];
+const lostFleetRaces: { name: string; file: string }[] = [
+  { name: 'Tinkeroids',    file: 'Tinkeroids_tile.png' },
+  { name: 'Darkanians',    file: 'Darkanians_tile.png' },
+  { name: 'Moweyds',       file: 'Moweyd_tile.png' },
+  { name: 'Space Giants',  file: 'SpaceGiants_tile.png' },
+];
+
+const allRaces = [...races, ...lostFleetRaces];
+
+// Splits an array into equal-size chunks (last chunk may be shorter).
+function chunk<T>(arr: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
+const raceRowsBase = chunk(races, 7);          // 14 base factions: 2 rows of 7
+const raceRowsLostFleet = chunk(allRaces, 6);   // 18 factions incl. Lost Fleet: 3 rows of 6
+const fractionRowsBase = [races];               // 14 base factions: single row (unchanged from before)
+const fractionRowsLostFleet = chunk(allRaces, 9); // 18 factions incl. Lost Fleet: 2 rows of 9
 
 // Factions sharing a home planet — can't coexist in the same game
 const FACTION_PAIRS: Record<string, string> = {
@@ -72,10 +91,15 @@ const FACTION_PAIRS: Record<string, string> = {
   'Bescods':       'Firacs',
   'Nevlas':        'Itars',
   'Itars':         'Nevlas',
+  // Lost Fleet expansion — pairs share the same starting planet type (Asteroid / Protoplanet)
+  'Tinkeroids':    'Darkanians',
+  'Darkanians':    'Tinkeroids',
+  'Moweyds':       'Space Giants',
+  'Space Giants':  'Moweyds',
 };
 
 function getRaceFile(name: string): string {
-  return races.find((r) => r.name === name)?.file ?? '';
+  return allRaces.find((r) => r.name === name)?.file ?? '';
 }
 
 export default function SearchForm({ onSearch, isLoading = false, lostFleetGameCount }: SearchFormProps) {
@@ -83,7 +107,7 @@ export default function SearchForm({ onSearch, isLoading = false, lostFleetGameC
   const [criteria, setCriteria] = useState<FormState>({});
   const [selectedLevel, setSelectedLevel] = useState<string>('');
   const [sortBy, setSortBy] = useState<string>('');
-  const [showLostFleetInfo, setShowLostFleetInfo] = useState(false);
+  const [lostFleetMode, setLostFleetMode] = useState(false);
 
   const [fractionConfigs, setFractionConfigs] = useState<FractionConfig[]>([]);
   const [advancedTechDialogRace, setAdvancedTechDialogRace] = useState<string | null>(null);
@@ -296,8 +320,8 @@ export default function SearchForm({ onSearch, isLoading = false, lostFleetGameC
           <label className="flex items-center gap-2 whitespace-nowrap text-sm font-medium text-gray-700">
             <input
               type="checkbox"
-              checked={showLostFleetInfo}
-              onChange={(e) => setShowLostFleetInfo(e.target.checked)}
+              checked={lostFleetMode}
+              onChange={(e) => setLostFleetMode(e.target.checked)}
               className="h-6 w-6 rounded border-gray-300"
             />
             Lost fleet
@@ -305,13 +329,13 @@ export default function SearchForm({ onSearch, isLoading = false, lostFleetGameC
         </div>
       </div>
 
-      {showLostFleetInfo ? (
-        <p className="text-sm text-gray-600 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+      {lostFleetMode && (
+        <p className="mb-4 text-sm text-gray-600 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
           Lost Fleet game support is currently in development. There are currently{' '}
           <strong>{lostFleetGameCount}</strong> Lost Fleet games in the database.
         </p>
-      ) : (
-      <>
+      )}
+
       {/* Section 1: Single Selection Filters */}
       <div className="mb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -321,7 +345,7 @@ export default function SearchForm({ onSearch, isLoading = false, lostFleetGameC
               Winner
             </label>
             <div className="flex flex-col gap-2">
-              {raceRows.map((row, rowIdx) => (
+              {(lostFleetMode ? raceRowsLostFleet : raceRowsBase).map((row, rowIdx) => (
                 <div key={rowIdx} className="flex justify-between">
                   {row.map(({ name, file }) => {
                     const isSelected = criteria.winnerRace === name;
@@ -353,6 +377,8 @@ export default function SearchForm({ onSearch, isLoading = false, lostFleetGameC
             </div>
           </div>
 
+          {!lostFleetMode && (
+          <>
           {/* Final Scoring Mission */}
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -499,6 +525,8 @@ export default function SearchForm({ onSearch, isLoading = false, lostFleetGameC
               )}
             </div>
           </div>
+          </>
+          )}
         </div>
       </div>
 
@@ -513,34 +541,38 @@ export default function SearchForm({ onSearch, isLoading = false, lostFleetGameC
           <h4 className="text-xs font-semibold text-gray-600 mb-3 uppercase">Fraction Config <span className="text-green-700">(AND)</span></h4>
 
           {/* Tile picker */}
-          <div className="flex flex-wrap gap-2 mb-4">
-            {races.map(({ name, file }) => {
-              const isActive = fractionConfigs.some((fc) => fc.race === name);
-              const pairedName = FACTION_PAIRS[name];
-              const pairSelected = pairedName ? fractionConfigs.some((fc) => fc.race === pairedName) : false;
-              const isDisabled = !isActive && (fractionConfigs.length >= 4 || pairSelected);
-              const disabledTitle = pairSelected
-                ? `Can't pick — ${pairedName} shares the same home planet`
-                : 'Deselect a faction first';
-              return (
-                <button
-                  key={name}
-                  type="button"
-                  title={isDisabled ? disabledTitle : name}
-                  onClick={() => toggleFraction(name)}
-                  disabled={isDisabled}
-                  className={`rounded-md overflow-hidden transition-all ${
-                    isActive
-                      ? 'ring-4 ring-blue-500 ring-offset-2'
-                      : isDisabled
-                      ? 'opacity-20 cursor-not-allowed'
-                      : 'opacity-60 hover:opacity-90'
-                  }`}
-                >
-                  <Image src={`/races/${file}`} alt={name} width={50} height={50} />
-                </button>
-              );
-            })}
+          <div className="flex flex-col gap-2 mb-4">
+            {(lostFleetMode ? fractionRowsLostFleet : fractionRowsBase).map((row, rowIdx) => (
+              <div key={rowIdx} className={lostFleetMode ? 'flex justify-between' : 'flex flex-wrap gap-2'}>
+                {row.map(({ name, file }) => {
+                  const isActive = fractionConfigs.some((fc) => fc.race === name);
+                  const pairedName = FACTION_PAIRS[name];
+                  const pairSelected = pairedName ? fractionConfigs.some((fc) => fc.race === pairedName) : false;
+                  const isDisabled = !isActive && (fractionConfigs.length >= 4 || pairSelected);
+                  const disabledTitle = pairSelected
+                    ? `Can't pick — ${pairedName} shares the same home planet`
+                    : 'Deselect a faction first';
+                  return (
+                    <button
+                      key={name}
+                      type="button"
+                      title={isDisabled ? disabledTitle : name}
+                      onClick={() => toggleFraction(name)}
+                      disabled={isDisabled}
+                      className={`rounded-md overflow-hidden transition-all ${
+                        isActive
+                          ? 'ring-4 ring-blue-500 ring-offset-2'
+                          : isDisabled
+                          ? 'opacity-20 cursor-not-allowed'
+                          : 'opacity-60 hover:opacity-90'
+                      }`}
+                    >
+                      <Image src={`/races/${file}`} alt={name} width={50} height={50} />
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
           </div>
 
           {/* Active fraction entries */}
@@ -780,6 +812,8 @@ export default function SearchForm({ onSearch, isLoading = false, lostFleetGameC
           ))}
         </div>
 
+        {!lostFleetMode && (
+        <>
         {/* Amount of Players + Player Name — side by side */}
         <div className="mb-4 flex gap-4">
         {/* Amount of Players Section */}
@@ -922,6 +956,8 @@ export default function SearchForm({ onSearch, isLoading = false, lostFleetGameC
           )}
         </div>
         </div> {/* end flex row */}
+        </>
+        )}
       </div>
 
       {/* Advanced Tech Dialog */}
@@ -1032,6 +1068,8 @@ export default function SearchForm({ onSearch, isLoading = false, lostFleetGameC
         );
       })()}
 
+      {!lostFleetMode && (
+      <>
       {/* Buttons */}
       <div className="flex gap-4">
         <button

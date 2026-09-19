@@ -24,6 +24,11 @@ export enum RaceId {
   BESCODS = 12,
   NEVLAS = 13,
   ITARS = 14,
+  // Lost Fleet expansion factions
+  TINKEROIDS = 15,
+  DARKANIANS = 16,
+  MOWEYDS = 17,
+  SPACE_GIANTS = 18,
 }
 
 export const RACE_NAMES: Record<RaceId, string> = {
@@ -41,6 +46,10 @@ export const RACE_NAMES: Record<RaceId, string> = {
   [RaceId.BESCODS]: 'Bescods',
   [RaceId.NEVLAS]: 'Nevlas',
   [RaceId.ITARS]: 'Itars',
+  [RaceId.TINKEROIDS]: 'Tinkeroids',
+  [RaceId.DARKANIANS]: 'Darkanians',
+  [RaceId.MOWEYDS]: 'Moweyds',
+  [RaceId.SPACE_GIANTS]: 'Space Giants',
 };
 
 // Helper function to get race name
