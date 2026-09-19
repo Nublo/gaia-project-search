@@ -158,11 +158,13 @@ BGA_USERNAME=user2 BGA_PASSWORD=pass2 npx tsx scripts/collect-player.ts Nigator
 npx tsx scripts/push-to-remote.ts
 ```
 
+**Prioritizing specific players**: to collect specific players first (instead of only the DB-derived eligible set), list their BGA player ids — one per line — in `scripts/priority-players.txt` (gitignored; blank/`#` lines ignored). On the next `collect-parallel.ts` run they're **prepended** to the front of the queue (then normal eligible players follow), and the file is cleared automatically so the override fires exactly once. If a rate limit interrupts before a listed player finishes, they're picked up again by the normal `PlayerCollectionState` rules next run.
+
 **BGA Rate Limit**: ~100 game log views per day per account. The collector detects this immediately and stops cleanly. Re-run next day or use multiple accounts.
 
 ## Automated Daily Collection
 
-`scripts/collect-daily.sh` runs automatically via launchd (macOS). It picks eligible players from the `PlayerCollectionState` table (via `scripts/list-collectable-players.ts`: `reachEnd = false` OR `collectionDate` older than 1 month), runs `collect-player.ts` for them, then `push-to-remote.ts`. Each run shifts the next scheduled time +10 min to avoid BGA rate limit collisions.
+`scripts/collect-daily.sh` runs automatically via launchd (macOS). It runs `scripts/collect-parallel.ts <NUM_USERS>`, which builds the eligible-player queue from the `PlayerCollectionState` table (via `getCollectablePlayerIds()`: `reachEnd = false` OR `collectionDate` older than 1 month), optionally prepends any one-shot priority ids from `scripts/priority-players.txt`, then runs `collect-player.ts` for each player across N parallel workers (one per BGA account). Afterwards it runs `push-to-remote.ts` and busts the production cache. Each run shifts the next scheduled time +10 min to avoid BGA rate limit collisions.
 
 - **State file**: `~/.config/bgagaia/state.json` — contains `nextRunAt` and `lastRunDate`; edit `nextRunAt` to reset the schedule
 - **Logs**: `logs/collect-YYYY-MM-DD.log`
