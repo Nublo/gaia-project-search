@@ -51,6 +51,7 @@ Introducing new fields requires next steps:
 - Update game-parser.ts logic to include new field
 - Run migration on a local database
 - Write a backfill script to fill new field (fetch in batches for 100 games, due to rawLogs are quite large)
+- **Update `scripts/push-to-remote.ts`** — it lists `Game`/`Player` fields explicitly in its `create()` call rather than copying whole rows, so any new column silently defaults (e.g. to `false`/`null`) on remote unless added there too. This is easy to miss since the file is gitignored (not version-controlled) and `npm run type-check`/tests won't catch a merely-omitted-but-valid field.
 - After backfilling local database push updates for this specific field to the remote database
 
 **Search pattern**: "Find games where ANY player matches condition" — uses `players: { some: { ... } }` or raw SQL EXISTS. Returns entire game rows with all players.
