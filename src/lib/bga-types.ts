@@ -136,6 +136,8 @@ export interface GetTableInfoResponse {
       stats: any; // Game statistics (masked for privacy)
       trophies: any[];
     };
+    // Numbered game-variant settings (e.g. "107" = "Lost Fleet Expansion").
+    options?: Record<string, { name: string; value: string; [key: string]: any }>;
     [key: string]: any; // Other fields
   };
 }

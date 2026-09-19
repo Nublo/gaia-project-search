@@ -34,6 +34,7 @@ interface FractionConfig {
 interface SearchFormProps {
   onSearch: (req: SearchRequest) => void;
   isLoading?: boolean;
+  lostFleetGameCount: number;
 }
 
 const races: { name: string; file: string }[] = [
@@ -77,11 +78,12 @@ function getRaceFile(name: string): string {
   return races.find((r) => r.name === name)?.file ?? '';
 }
 
-export default function SearchForm({ onSearch, isLoading = false }: SearchFormProps) {
+export default function SearchForm({ onSearch, isLoading = false, lostFleetGameCount }: SearchFormProps) {
   const router = useRouter();
   const [criteria, setCriteria] = useState<FormState>({});
   const [selectedLevel, setSelectedLevel] = useState<string>('');
   const [sortBy, setSortBy] = useState<string>('');
+  const [showLostFleetInfo, setShowLostFleetInfo] = useState(false);
 
   const [fractionConfigs, setFractionConfigs] = useState<FractionConfig[]>([]);
   const [advancedTechDialogRace, setAdvancedTechDialogRace] = useState<string | null>(null);
@@ -279,19 +281,37 @@ export default function SearchForm({ onSearch, isLoading = false }: SearchFormPr
     <form onSubmit={handleSubmit} className="w-full max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-md">
       <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
         <h2 className="text-2xl font-bold text-gray-800">Search Gaia Project Games</h2>
-        <a
-          href="https://youtu.be/2IvyBkVahBo?si=ea_GtfIn6MzEirn7"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-red-700"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 fill-current">
-            <path d="M8 5v14l11-7z" />
-          </svg>
-          Watch tutorial
-        </a>
+        <div className="flex items-center gap-3">
+          <a
+            href="https://youtu.be/2IvyBkVahBo?si=ea_GtfIn6MzEirn7"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-red-700"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 fill-current">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+            Watch tutorial
+          </a>
+          <label className="flex items-center gap-2 whitespace-nowrap text-sm font-medium text-gray-700">
+            <input
+              type="checkbox"
+              checked={showLostFleetInfo}
+              onChange={(e) => setShowLostFleetInfo(e.target.checked)}
+              className="h-6 w-6 rounded border-gray-300"
+            />
+            Lost fleet
+          </label>
+        </div>
       </div>
 
+      {showLostFleetInfo ? (
+        <p className="text-sm text-gray-600 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+          Lost Fleet game support is currently in development. There are currently{' '}
+          <strong>{lostFleetGameCount}</strong> Lost Fleet games in the database.
+        </p>
+      ) : (
+      <>
       {/* Section 1: Single Selection Filters */}
       <div className="mb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1040,6 +1060,8 @@ export default function SearchForm({ onSearch, isLoading = false }: SearchFormPr
           Reset
         </button>
       </div>
+      </>
+      )}
     </form>
   );
 }

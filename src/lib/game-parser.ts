@@ -36,6 +36,15 @@ export function computeIsAuction(players: { startingScore: number }[]): boolean 
   return players.some((p) => Number(p.startingScore) !== 10);
 }
 
+/**
+ * Determine whether a game was played with the "Lost Fleet" expansion enabled,
+ * from the table-info variant option 107 ("Lost Fleet Expansion": "1" = Disabled,
+ * "2" = Enabled).
+ */
+export function computeIsLostFleet(tableInfo: GetTableInfoResponse): boolean {
+  return tableInfo.data.options?.['107']?.value === '2';
+}
+
 // ============================================================================
 // PARSED GAME DATA
 // ============================================================================
@@ -51,6 +60,7 @@ export interface ParsedGameData {
   finalScorings: number[]; // IDs of the 2 active final scoring missions (1–6)
   isComplete: boolean; // True if all 6 rounds were played (notifyRoundEnd roundNum===6 found)
   isAuction: boolean; // True if faction auction was used (any player started with ≠ 10 VP)
+  isLostFleet: boolean; // True if the "Lost Fleet" expansion was enabled (table option 107)
   players: PlayerRaceMapping[];
 
   // Raw data for future parsing
@@ -97,6 +107,7 @@ export class GameLogParser {
     let currentRound = 0;
     let pendingQicActionPlayerId: number | null = null;
     let pendingTechGainPlayerId: number | null = null;
+    let foundLogFinalScores = false;
 
     // Parse each log packet
     for (const packet of logs) {
@@ -158,6 +169,10 @@ export class GameLogParser {
             const resultEntries: any[] = Array.isArray(args.args.result)
               ? args.args.result
               : Object.values(args.args.result);
+
+            if (resultEntries.length > 0) {
+              foundLogFinalScores = true;
+            }
 
             for (const playerScore of resultEntries) {
               const playerId = parseInt(playerScore.id);
@@ -340,6 +355,22 @@ export class GameLogParser {
       pendingTechGainPlayerId = null;
     }
 
+    // Some archived logs don't include the final gameStateChange result event even for
+    // finished games (seen on a Lost Fleet sample) — fall back to table-info scores, which
+    // are always present for archived/finished games, so finalScore isn't silently left at 0.
+    if (!foundLogFinalScores) {
+      for (const player of players) {
+        const tableInfoPlayer = tableInfo.data.result.player.find(
+          (p) => parseInt(p.player_id) === player.playerId
+        );
+        const score = tableInfoPlayer ? parseInt(tableInfoPlayer.score) : NaN;
+        if (!isNaN(score)) {
+          player.finalScore = score;
+          console.log(`[Parser] ${player.playerName}: ${score} points (from table info fallback)`);
+        }
+      }
+    }
+
     // Compute totalScoredPoints for each player
     for (const player of players) {
       player.totalScoredPoints = player.finalScore - player.startingScore;
@@ -406,6 +437,7 @@ export class GameLogParser {
       finalScorings,
       isComplete,
       isAuction: computeIsAuction(players),
+      isLostFleet: computeIsLostFleet(tableInfo),
       rawLog: logResponse,
     };
 

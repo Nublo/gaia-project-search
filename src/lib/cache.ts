@@ -7,3 +7,4 @@ export const CACHE_REVALIDATE_SECONDS = 86400;
 // DB read on the next request) without waiting for the TTL to expire.
 export const CACHE_TAG_GAME_COUNT = 'game-count';
 export const CACHE_TAG_PLAYER_NAMES = 'player-names';
+export const CACHE_TAG_LOST_FLEET_COUNT = 'lost-fleet-count';

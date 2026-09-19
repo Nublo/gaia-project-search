@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
-import { GameLogParser } from '../game-parser'
+import { GameLogParser, computeIsLostFleet } from '../game-parser'
 import type { GameTableInfo, GetGameLogResponse, GetTableInfoResponse } from '../bga-types'
 
 // ============================================================================
@@ -16,6 +16,14 @@ function loadLogsFixture(): GetGameLogResponse {
 
 function loadBescodsFixture(): GetGameLogResponse {
   return JSON.parse(readFileSync(resolve(FIXTURES_DIR, 'game_bescods.json'), 'utf8'))
+}
+
+function loadLostFleetLogsFixture(): GetGameLogResponse {
+  return JSON.parse(readFileSync(resolve(FIXTURES_DIR, 'lostfleet_game.json'), 'utf8'))
+}
+
+function loadLostFleetTableInfoFixture(): GetTableInfoResponse {
+  return JSON.parse(readFileSync(resolve(FIXTURES_DIR, 'lostfleet_tableinfo.json'), 'utf8'))
 }
 
 /**
@@ -51,7 +59,8 @@ function makeGameTable(tableId = '820488760'): GameTableInfo {
  * ELO values use BGA's raw format (real value + 1300 offset).
  */
 function makeTableInfo(overrides?: {
-  players?: { player_id: string; gamerank: string; rank_after_game: string }[]
+  players?: { player_id: string; gamerank: string; rank_after_game: string; score?: string }[]
+  options?: Record<string, { name: string; value: string }>
 }): GetTableInfoResponse {
   const players = overrides?.players ?? [
     { player_id: '97128233', gamerank: '3', rank_after_game: '2800' }, // AskimBenim → ELO 1500
@@ -80,7 +89,7 @@ function makeTableInfo(overrides?: {
           player_id: p.player_id,
           gamerank: p.gamerank,
           rank_after_game: p.rank_after_game,
-          score: '0',
+          score: p.score ?? '0',
           score_aux: '0',
           is_tie: '0',
           point_win: '0',
@@ -100,6 +109,7 @@ function makeTableInfo(overrides?: {
         stats: {},
         trophies: [],
       },
+      options: overrides?.options,
     },
   }
 }
@@ -960,5 +970,120 @@ describe('GameLogParser — auction detection', () => {
       ]),
     ])
     expect(result.isAuction).toBe(false)
+  })
+})
+
+// ============================================================================
+// TESTS: LOST FLEET DETECTION
+// ============================================================================
+
+describe('computeIsLostFleet', () => {
+  it('returns true when table option 107 is "2" (Enabled)', () => {
+    const tableInfo = makeTableInfo({ options: { '107': { name: 'Lost Fleet Expansion', value: '2' } } })
+    expect(computeIsLostFleet(tableInfo)).toBe(true)
+  })
+
+  it('returns false when table option 107 is "1" (Disabled)', () => {
+    const tableInfo = makeTableInfo({ options: { '107': { name: 'Lost Fleet Expansion', value: '1' } } })
+    expect(computeIsLostFleet(tableInfo)).toBe(false)
+  })
+
+  it('returns false when option 107 is absent entirely', () => {
+    const tableInfo = makeTableInfo()
+    expect(computeIsLostFleet(tableInfo)).toBe(false)
+  })
+})
+
+describe('GameLogParser.parseGameLog — real fixture (Lost Fleet game)', () => {
+  const logResponse = loadLostFleetLogsFixture()
+  const tableInfo = loadLostFleetTableInfoFixture()
+  const gameTable = makeGameTable('917279160')
+  const result = GameLogParser.parseGameLog(gameTable, logResponse, tableInfo)
+
+  it('marks the game as Lost Fleet (table option 107 enabled)', () => {
+    expect(result.isLostFleet).toBe(true)
+  })
+
+  it('parses without throwing and extracts both players', () => {
+    expect(result.playerCount).toBe(2)
+    expect(result.players).toHaveLength(2)
+  })
+
+  it('extracts base-game race IDs even on a Lost-Fleet-enabled table', () => {
+    const raceIds = result.players.map((p) => p.raceId).sort((a, b) => a - b)
+    expect(raceIds).toEqual([2, 14]) // Lantids, Itars — no new-expansion factions used in this sample
+  })
+
+  // This log's final packets never carry a gameStateChange event with a scoring
+  // result payload (BGA archive-export quirk) — final scores must come from the
+  // table-info fallback instead, matching what's shown on BGA (226 / 181).
+  it('falls back to table-info scores since the log has no final-result event', () => {
+    const nigator = result.players.find((p) => p.playerName === 'Nigator')!
+    const samaxxxxx = result.players.find((p) => p.playerName === 'Samaxxxxx')!
+    expect(nigator.finalScore).toBe(226)
+    expect(samaxxxxx.finalScore).toBe(181)
+  })
+
+  it('marks the game complete and identifies the correct winner via the fallback scores', () => {
+    expect(result.isComplete).toBe(true)
+    expect(result.winnerName).toBe('Nigator')
+  })
+})
+
+// ============================================================================
+// TESTS: FINAL SCORE FALLBACK (missing gameStateChange result event)
+// ============================================================================
+
+describe('GameLogParser — final score fallback to table info', () => {
+  it('uses table-info scores when the log has no final-result event', () => {
+    const tableInfo = makeTableInfo({
+      players: [
+        { player_id: '1', gamerank: '1', rank_after_game: '2800', score: '150' },
+        { player_id: '2', gamerank: '2', rank_after_game: '2700', score: '120' },
+      ],
+    })
+    const result = GameLogParser.parseGameLog(
+      makeGameTable(),
+      makeLogResponse([
+        chooseRaceEvent(1, 'Alice', 1),
+        chooseRaceEvent(2, 'Bob', 2),
+        roundEndEvent(6),
+        // No gameEndEvent — simulates the missing-result-event log quirk.
+      ]),
+      tableInfo
+    )
+
+    const alice = result.players.find((p) => p.playerName === 'Alice')!
+    const bob = result.players.find((p) => p.playerName === 'Bob')!
+    expect(alice.finalScore).toBe(150)
+    expect(bob.finalScore).toBe(120)
+    expect(result.isComplete).toBe(true)
+  })
+
+  it('prefers the log result event over table-info scores when both are present', () => {
+    const tableInfo = makeTableInfo({
+      players: [
+        { player_id: '1', gamerank: '1', rank_after_game: '2800', score: '999' },
+        { player_id: '2', gamerank: '2', rank_after_game: '2700', score: '888' },
+      ],
+    })
+    const result = GameLogParser.parseGameLog(
+      makeGameTable(),
+      makeLogResponse([
+        chooseRaceEvent(1, 'Alice', 1),
+        chooseRaceEvent(2, 'Bob', 2),
+        roundEndEvent(6),
+        gameEndEvent([
+          { id: '1', name: 'Alice', score: '150' },
+          { id: '2', name: 'Bob', score: '120' },
+        ]),
+      ]),
+      tableInfo
+    )
+
+    const alice = result.players.find((p) => p.playerName === 'Alice')!
+    const bob = result.players.find((p) => p.playerName === 'Bob')!
+    expect(alice.finalScore).toBe(150)
+    expect(bob.finalScore).toBe(120)
   })
 })

@@ -22,6 +22,7 @@ export async function storeGame(parsedGame: ParsedGameData) {
         finalScorings: parsedGame.finalScorings,
         isComplete: parsedGame.isComplete,
         isAuction: parsedGame.isAuction,
+        isLostFleet: parsedGame.isLostFleet,
         rawGameLog: parsedGame as any,
       }
     });

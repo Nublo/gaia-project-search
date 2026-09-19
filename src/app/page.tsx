@@ -1,6 +1,6 @@
 import { unstable_cache } from 'next/cache';
 import { prisma } from '@/lib/db';
-import { CACHE_REVALIDATE_SECONDS, CACHE_TAG_GAME_COUNT } from '@/lib/cache';
+import { CACHE_REVALIDATE_SECONDS, CACHE_TAG_GAME_COUNT, CACHE_TAG_LOST_FLEET_COUNT } from '@/lib/cache';
 import SearchSection from './SearchSection';
 
 // The finished-game count changes only when the daily collector adds games, so
@@ -17,13 +17,19 @@ const getGameCount = unstable_cache(
   { revalidate: CACHE_REVALIDATE_SECONDS, tags: [CACHE_TAG_GAME_COUNT] }
 );
 
+const getLostFleetCount = unstable_cache(
+  () => prisma.game.count({ where: { isLostFleet: true } }),
+  ['lost-fleet-game-count'],
+  { revalidate: CACHE_REVALIDATE_SECONDS, tags: [CACHE_TAG_LOST_FLEET_COUNT] }
+);
+
 export default async function Home() {
-  const gameCount = await getGameCount();
+  const [gameCount, lostFleetGameCount] = await Promise.all([getGameCount(), getLostFleetCount()]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 py-3">
       <div className="container mx-auto px-4">
-        <SearchSection />
+        <SearchSection lostFleetGameCount={lostFleetGameCount} />
         <p className="text-center text-gray-500 text-sm mt-4">
           Database contains {gameCount.toLocaleString()} finished games
         </p>

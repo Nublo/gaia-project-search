@@ -17,6 +17,7 @@ model Game {
   finalScorings Int[]    @map("final_scorings")
   isComplete    Boolean  @default(false) @map("is_complete")
   isAuction     Boolean  @default(false) @map("is_auction")
+  isLostFleet   Boolean  @default(false) @map("is_lost_fleet")
   rawGameLog    Json     @map("raw_game_log")
   players       Player[]
 
@@ -26,6 +27,7 @@ model Game {
   @@index([finalScorings], map: "games_final_scorings_gin_idx", type: Gin)
   @@index([isComplete])
   @@index([isAuction])
+  @@index([isLostFleet])
   @@map("games")
 }
 

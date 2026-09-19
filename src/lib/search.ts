@@ -37,7 +37,8 @@ export async function searchGames(req: SearchRequest): Promise<SearchGamesResult
     playerRaceConditions = [],
   } = req;
 
-  const andConditions: Prisma.GameWhereInput[] = [{ isComplete: true }];
+  // Lost Fleet games are not yet searchable — always excluded, not user-toggleable.
+  const andConditions: Prisma.GameWhereInput[] = [{ isComplete: true }, { isLostFleet: false }];
 
   if (minPlayerElo) {
     andConditions.push({ minPlayerElo: { gte: minPlayerElo } });
@@ -524,6 +525,8 @@ export async function getAnalytics(req: SearchRequest, selectedGroup?: string[])
   // Always enforce completed multi-player games
   andConditions.push({ isComplete: true });
   andConditions.push({ playerCount: { gt: 1 } });
+  // Lost Fleet games are not yet searchable — always excluded, not user-toggleable.
+  andConditions.push({ isLostFleet: false });
 
   if (minPlayerElo) {
     andConditions.push({ minPlayerElo: { gte: minPlayerElo } });
