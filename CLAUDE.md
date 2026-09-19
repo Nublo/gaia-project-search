@@ -45,14 +45,21 @@ Example search queries:
 
 ### Key Implementation Notes
 
-**Re-parsing existing games**: `raw_game_log.rawLog.data.logs` contains the full BGA event stream. New fields can be backfilled without re-collecting from BGA.
-Introducing new fields requires next steps:
-- Introduce new field in prisma/schema.prisma
-- Update game-parser.ts logic to include new field
-- Run migration on a local database
-- Write a backfill script to fill new field (fetch in batches for 100 games, due to rawLogs are quite large)
-- **Update `scripts/push-to-remote.ts`** — it lists `Game`/`Player` fields explicitly in its `create()` call rather than copying whole rows, so any new column silently defaults (e.g. to `false`/`null`) on remote unless added there too. This is easy to miss since the file is gitignored (not version-controlled) and `npm run type-check`/tests won't catch a merely-omitted-but-valid field.
-- After backfilling local database push updates for this specific field to the remote database
+**Re-parsing existing games**: `raw_game_log.rawLog.data.logs` contains the full BGA event stream, so most new fields can be backfilled from data already in the local database — never delete and re-collect from BGA to get a new field.
+
+### Backfilling New Fields
+
+Follow this exact order when introducing a field derived from data already stored in `raw_game_log` (as opposed to something that requires fresh collection):
+
+1. **Implement the parsing logic** — add the field to `ParsedGameData`/`PlayerRaceMapping` in `game-parser.ts` (and `gaia-constants.ts` if it needs a new mapping), so newly-collected games get it going forward.
+2. **Update the database schema on both local and remote** — add the column in `prisma/schema.prisma`, run `npm run db:migrate` locally, then deploy the same migration to remote: `POSTGRES_PRISMA_URL=<neon_url> POSTGRES_URL_NON_POOLING=<neon_url> npx prisma migrate deploy`. Do both before writing any backfilled data.
+3. **Verify the new column exists** on both databases (`npm run db:studio`, `psql`, or `npx prisma migrate status`) before proceeding.
+4. **Backfill the local database** — write a one-off script (e.g. `scripts/backfill-<field>.ts`; `scripts/` is gitignored, so these are throwaway/local-only) that re-parses `raw_game_log.rawLog` for existing games and updates just the new field(s). **Fetch and process in batches of 100 games** — the local DB has 20k+ games and `raw_game_log` is large, so loading them all at once is impractical. See `git show 2974a18:scripts/backfill-final-scorings.ts` for a reference implementation of this exact pattern (batched `findMany`, re-parse each row's stored raw log, per-row `update`).
+5. **Verify locally** — spot-check the new field's value for at least one game in the local DB before touching remote.
+6. **Push the new field to remote, in batches, updating only that field** — write a push script that updates existing remote rows' new field(s) only (not full rows — `raw_game_log` is intentionally cleared/never re-sent on remote to save space), in batches of 100, to keep traffic down. This is a **different** script/purpose than `scripts/push-to-remote.ts`, which only pushes brand-new games — see the reminder below for what that one needs instead.
+7. **Verify remotely** — spot-check the same game's new field value on remote after the push completes.
+
+**Also update `scripts/push-to-remote.ts` for the *new-game* path** (separate from the batched backfill-push above): it lists `Game`/`Player` fields explicitly in its `create()` call rather than copying whole rows, so any new column silently defaults (e.g. to `false`/`null`) on remote for every future newly-collected game unless added there too. Easy to miss since the file is gitignored (not version-controlled) and `npm run type-check`/tests won't catch a merely-omitted-but-valid field.
 
 **Search pattern**: "Find games where ANY player matches condition" — uses `players: { some: { ... } }` or raw SQL EXISTS. Returns entire game rows with all players.
 
