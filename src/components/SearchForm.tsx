@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import type { SearchRequest, StructureCondition, ResearchCondition, AdvancedTechCondition, StandardTechCondition } from '@/types/game';
 import { FINAL_SCORING_IMAGES, getFinalScoringName, RESEARCH_TRACK_SHORT_NAMES, ADVANCED_TECH_LABELS, ADVANCED_TECH_IMAGES, STANDARD_TECH_LABELS, STANDARD_TECH_IMAGES, STANDARD_TECH_LOST_FLEET_ART_VARIANT_IMAGE } from '@/lib/gaia-constants';
@@ -148,7 +147,6 @@ function getRaceFile(name: string): string {
 }
 
 export default function SearchForm({ onSearch, isLoading = false, lostFleetGameCount }: SearchFormProps) {
-  const router = useRouter();
   const [criteria, setCriteria] = useState<FormState>({});
   const [selectedLevel, setSelectedLevel] = useState<string>('');
   const [sortBy, setSortBy] = useState<string>('');

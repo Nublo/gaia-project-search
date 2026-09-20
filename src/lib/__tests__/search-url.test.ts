@@ -11,7 +11,6 @@ const EMPTY: SearchRequest = {
 
 function roundtrip(req: SearchRequest): SearchRequest {
   const qs = serializeSearchRequest(req);
-  const params = Object.fromEntries(new URLSearchParams(qs));
   // URLSearchParams.fromEntries loses repeated keys — use getAll via a proper parse
   const full: Record<string, string | string[]> = {};
   new URLSearchParams(qs).forEach((value, key) => {

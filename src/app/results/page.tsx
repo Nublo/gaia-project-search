@@ -25,8 +25,14 @@ export default async function ResultsPage({
     ? deserializeSearchRequest(params)
     : EMPTY_REQUEST;
 
+  // performance.now() here is fine despite the purity lint: this is an async
+  // Server Component that runs once per HTTP request on the server, not a
+  // Client Component subject to React's re-render/memoization — the timing
+  // is purely a debug footer ("Rendered in Xms"), not used in any decision.
+  // eslint-disable-next-line react-hooks/purity
   const pageStart = performance.now();
   const { games, queryMs } = await searchGames(searchRequest);
+  // eslint-disable-next-line react-hooks/purity
   const renderMs = Math.round(performance.now() - pageStart);
 
   return (

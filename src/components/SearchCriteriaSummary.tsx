@@ -1,5 +1,5 @@
 import Image from 'next/image';
-import type { SearchRequest, StructureCondition, ResearchCondition, AdvancedTechCondition, StandardTechCondition, PlayerRaceCondition } from '@/types/game';
+import type { SearchRequest, StructureCondition, ResearchCondition, AdvancedTechCondition, StandardTechCondition } from '@/types/game';
 import { getFinalScoringName, RESEARCH_TRACK_SHORT_NAMES, ADVANCED_TECH_LABELS, ADVANCED_TECH_IMAGES, STANDARD_TECH_LABELS, STANDARD_TECH_IMAGES } from '@/lib/gaia-constants';
 
 const STRUCTURE_LABELS: Record<string, string> = {

@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { RACE_NAMES } from '@/lib/gaia-constants';
-import type { SearchRequest, GameResult, ResearchCondition, AdvancedTechCondition, StandardTechCondition, PlayerRaceCondition } from '@/types/game';
+import type { SearchRequest, GameResult } from '@/types/game';
 
 const RACE_NAME_TO_ID: Record<string, number> = Object.fromEntries(
   Object.entries(RACE_NAMES).map(([id, name]) => [name, Number(id)])

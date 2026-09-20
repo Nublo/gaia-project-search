@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import type { GameResult, PlayerResult, SearchRequest, StructureCondition, ResearchCondition, AdvancedTechCondition, StandardTechCondition } from '@/types/game';
-import { RACE_NAMES, getFinalScoringName, FINAL_SCORING_IMAGES, ADVANCED_TECH_LABELS, ADVANCED_TECH_IMAGES, STANDARD_TECH_LABELS, RESEARCH_TRACK_SHORT_NAMES } from '@/lib/gaia-constants';
+import { RACE_NAMES, getFinalScoringName, FINAL_SCORING_IMAGES, RESEARCH_TRACK_SHORT_NAMES } from '@/lib/gaia-constants';
 
 const RACE_BADGE_CLASS: Record<string, string> = {
   'Terrans':      'bg-blue-600 text-white',
@@ -116,40 +116,6 @@ function getMatchedResearchLabels(
   return labels;
 }
 
-function getMatchedAdvancedTechLabels(
-  player: PlayerResult,
-  conditions: AdvancedTechCondition[]
-): string[] {
-  const labels: string[] = [];
-  for (const cond of conditions) {
-    if (cond.race) {
-      const raceId = RACE_NAME_TO_ID[cond.race];
-      if (player.raceId !== raceId) continue;
-    }
-    if ((player.advancedTechsData ?? []).includes(cond.techId)) {
-      labels.push(`Advanced Tech: ${ADVANCED_TECH_LABELS[cond.techId] ?? cond.techId}`);
-    }
-  }
-  return labels;
-}
-
-function getMatchedStandardTechLabels(
-  player: PlayerResult,
-  conditions: StandardTechCondition[]
-): string[] {
-  const labels: string[] = [];
-  for (const cond of conditions) {
-    if (cond.race) {
-      const raceId = RACE_NAME_TO_ID[cond.race];
-      if (player.raceId !== raceId) continue;
-    }
-    if ((player.standardTechsData ?? []).includes(cond.techId)) {
-      labels.push(`Standard Tech: ${STANDARD_TECH_LABELS[cond.techId] ?? cond.techId}`);
-    }
-  }
-  return labels;
-}
-
 const SORT_LABEL: Record<string, string> = {
   qicPoints: 'QIC',
   techPoints: 'Tech',
@@ -166,7 +132,7 @@ interface GameCardProps {
   sortBy?: SearchRequest['sortBy'];
 }
 
-export default function GameCard({ game, structureConditions = [], researchConditions = [], highlightedFinalScorings = [], advancedTechConditions = [], standardTechConditions = [], sortBy }: GameCardProps) {
+export default function GameCard({ game, structureConditions = [], researchConditions = [], highlightedFinalScorings = [], sortBy }: GameCardProps) {
   const sortedPlayers = [...game.players].sort((a, b) =>
     sortBy ? b[sortBy] - a[sortBy] : b.finalScore - a.finalScore
   );
@@ -216,8 +182,6 @@ export default function GameCard({ game, structureConditions = [], researchCondi
         {sortedPlayers.map((player) => {
           const structureLabels = getMatchedConditionLabels(player, structureConditions);
           const researchLabels = getMatchedResearchLabels(player, researchConditions);
-          const techLabels = getMatchedAdvancedTechLabels(player, advancedTechConditions);
-          const standardTechLabels = getMatchedStandardTechLabels(player, standardTechConditions);
           return (
             <div
               key={player.id}

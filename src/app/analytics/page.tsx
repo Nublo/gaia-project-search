@@ -34,8 +34,14 @@ export default async function AnalyticsPage({
     ? searchRequest.playerNames[0]
     : selectedGroup;
 
+  // performance.now() here is fine despite the purity lint: this is an async
+  // Server Component that runs once per HTTP request on the server, not a
+  // Client Component subject to React's re-render/memoization — the timing
+  // is purely a debug footer ("Rendered in Xms"), not used in any decision.
+  // eslint-disable-next-line react-hooks/purity
   const pageStart = performance.now();
   const { totalGames, factionStats, playerStats, queryMs } = await getAnalytics(searchRequest, selectedGroup);
+  // eslint-disable-next-line react-hooks/purity
   const renderMs = Math.round(performance.now() - pageStart);
 
   const playerCounts = searchRequest.playerCounts ?? [];

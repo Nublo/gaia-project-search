@@ -5,10 +5,8 @@
  */
 
 import {
-  BuildingType,
   EventType,
   PlayerRaceMapping,
-  BuildingAction,
   getRaceName,
   getBuildingName,
   FINAL_SCORING_DESC_TO_ID,
@@ -132,7 +130,6 @@ export class GameLogParser {
     // Parse each log packet
     for (const packet of logs) {
       const packetId = parseInt(packet.packet_id);
-      const timestamp = parseInt(packet.time);
 
       // Parse events in this packet
       for (const event of packet.data) {
