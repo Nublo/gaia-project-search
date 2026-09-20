@@ -153,6 +153,11 @@ export enum FinalScoringType {
   GAIA_PLANETS = 4,
   SECTORS = 5,
   SATELLITES = 6,
+  // Lost Fleet expansion
+  ASTEROIDS = 7,
+  PI_ACADEMY_DISTANCE = 8,
+  DEEP_SPACE_SECTORS = 9,
+  PLANET_TYPES_LOST_FLEET = 10, // Same condition as PLANET_TYPES (3), different physical tile/art
 }
 
 export const FINAL_SCORING_NAMES: Record<FinalScoringType, string> = {
@@ -162,16 +167,44 @@ export const FINAL_SCORING_NAMES: Record<FinalScoringType, string> = {
   [FinalScoringType.GAIA_PLANETS]: 'Gaia planets',
   [FinalScoringType.SECTORS]: 'Sectors',
   [FinalScoringType.SATELLITES]: 'Satellites',
+  [FinalScoringType.ASTEROIDS]: 'Most asteroids',
+  [FinalScoringType.PI_ACADEMY_DISTANCE]: 'Longest distance: Planetary Institute to Academy',
+  [FinalScoringType.DEEP_SPACE_SECTORS]: 'Most deep space tiles',
+  [FinalScoringType.PLANET_TYPES_LOST_FLEET]: 'Most planet types',
 };
 
-// Maps the `desc` field from notifyScore events to FinalScoringType IDs
+// Filenames for final-scoring images in /public/final-scorings/ — not all a
+// uniform extension (Lost Fleet tiles were supplied as .png, base game as .webp).
+export const FINAL_SCORING_IMAGES: Record<number, string> = {
+  [FinalScoringType.STRUCTURES_IN_FEDERATIONS]: '1.webp',
+  [FinalScoringType.STRUCTURES]: '2.webp',
+  [FinalScoringType.PLANET_TYPES]: '3.webp',
+  [FinalScoringType.GAIA_PLANETS]: '4.webp',
+  [FinalScoringType.SECTORS]: '5.webp',
+  [FinalScoringType.SATELLITES]: '6.webp',
+  [FinalScoringType.ASTEROIDS]: '7.png',
+  [FinalScoringType.PI_ACADEMY_DISTANCE]: '8.png',
+  [FinalScoringType.DEEP_SPACE_SECTORS]: '9.png',
+  [FinalScoringType.PLANET_TYPES_LOST_FLEET]: '10.png',
+};
+
+// Maps the `desc` field from notifyScore events to FinalScoringType IDs.
+// All base-game and Lost Fleet missions are confirmed from real logs.
+// Note: PLANET_TYPES_LOST_FLEET (10) is the same underlying condition as
+// PLANET_TYPES (3), just different art — confirmed via a real log that BGA
+// sends the identical desc text for both, so the log alone can't distinguish
+// which tile was drawn (SearchForm.tsx's FINAL_SCORING_SEARCH_ID handles this
+// on the UI side by mapping tile 10's selection to search for ID 3).
 export const FINAL_SCORING_DESC_TO_ID: Record<string, number> = {
   'Most structures in federations': FinalScoringType.STRUCTURES_IN_FEDERATIONS,
   'Most structures': FinalScoringType.STRUCTURES,
   'Most planet types': FinalScoringType.PLANET_TYPES,
   'Most Gaia planets': FinalScoringType.GAIA_PLANETS,
   'Most map tiles': FinalScoringType.SECTORS,
+  'Most deep space tiles': FinalScoringType.DEEP_SPACE_SECTORS,
   'Most satellites': FinalScoringType.SATELLITES,
+  'Longest distance: Planetary Institute to Academy': FinalScoringType.PI_ACADEMY_DISTANCE,
+  'Most asteroids': FinalScoringType.ASTEROIDS,
 };
 
 export function getFinalScoringName(id: number): string {

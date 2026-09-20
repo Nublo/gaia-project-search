@@ -57,7 +57,7 @@ describe('getBuildingName', () => {
 })
 
 describe('FINAL_SCORING_DESC_TO_ID', () => {
-  it('maps all 6 descriptions to correct IDs', () => {
+  it('maps all 6 base-game descriptions to correct IDs', () => {
     expect(FINAL_SCORING_DESC_TO_ID['Most structures in federations']).toBe(FinalScoringType.STRUCTURES_IN_FEDERATIONS)
     expect(FINAL_SCORING_DESC_TO_ID['Most structures']).toBe(FinalScoringType.STRUCTURES)
     expect(FINAL_SCORING_DESC_TO_ID['Most planet types']).toBe(FinalScoringType.PLANET_TYPES)
@@ -66,8 +66,14 @@ describe('FINAL_SCORING_DESC_TO_ID', () => {
     expect(FINAL_SCORING_DESC_TO_ID['Most satellites']).toBe(FinalScoringType.SATELLITES)
   })
 
-  it('has exactly 6 entries', () => {
-    expect(Object.keys(FINAL_SCORING_DESC_TO_ID)).toHaveLength(6)
+  it('maps the confirmed Lost Fleet descriptions', () => {
+    expect(FINAL_SCORING_DESC_TO_ID['Most deep space tiles']).toBe(FinalScoringType.DEEP_SPACE_SECTORS)
+    expect(FINAL_SCORING_DESC_TO_ID['Longest distance: Planetary Institute to Academy']).toBe(FinalScoringType.PI_ACADEMY_DISTANCE)
+    expect(FINAL_SCORING_DESC_TO_ID['Most asteroids']).toBe(FinalScoringType.ASTEROIDS)
+  })
+
+  it('has exactly 9 entries', () => {
+    expect(Object.keys(FINAL_SCORING_DESC_TO_ID)).toHaveLength(9)
   })
 
   it('returns undefined for unknown description', () => {

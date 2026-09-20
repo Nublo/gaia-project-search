@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import type { SearchRequest, StructureCondition, ResearchCondition, AdvancedTechCondition, StandardTechCondition } from '@/types/game';
-import { FINAL_SCORING_NAMES, getFinalScoringName, RESEARCH_TRACK_SHORT_NAMES, ADVANCED_TECH_LABELS, ADVANCED_TECH_IMAGES, STANDARD_TECH_LABELS, STANDARD_TECH_IMAGES } from '@/lib/gaia-constants';
+import { FINAL_SCORING_IMAGES, getFinalScoringName, RESEARCH_TRACK_SHORT_NAMES, ADVANCED_TECH_LABELS, ADVANCED_TECH_IMAGES, STANDARD_TECH_LABELS, STANDARD_TECH_IMAGES } from '@/lib/gaia-constants';
 import { serializeSearchRequest } from '@/lib/search-url';
 
 interface FormState {
@@ -74,6 +74,16 @@ const raceRowsBase = chunk(races, 7);          // 14 base factions: 2 rows of 7
 const raceRowsLostFleet = chunk(allRaces, 6);   // 18 factions incl. Lost Fleet: 3 rows of 6
 const fractionRowsBase = [races];               // 14 base factions: single row (unchanged from before)
 const fractionRowsLostFleet = chunk(allRaces, 9); // 18 factions incl. Lost Fleet: 2 rows of 9
+
+const finalScoringRowsBase = [[1, 2, 3, 4, 5, 6]]; // base game: single row of 6
+// Lost Fleet: single row of 9 — excludes 3 (Planet types) since 10 is the same
+// condition with different Lost Fleet art (PLANET_TYPES_LOST_FLEET).
+const finalScoringRowsLostFleet = [[1, 2, 4, 5, 6, 7, 8, 9, 10]];
+
+// Confirmed via a real Lost Fleet log: BGA's notifyScore desc for tile 10 is
+// identical to tile 3 ("Most planet types"), so the parser only ever writes 3
+// into finalScorings. Tile 10 is display-only art; it searches as 3.
+const FINAL_SCORING_SEARCH_ID: Record<number, number> = { 10: 3 };
 
 // Factions sharing a home planet — can't coexist in the same game
 const FACTION_PAIRS: Record<string, string> = {
@@ -377,50 +387,59 @@ export default function SearchForm({ onSearch, isLoading = false, lostFleetGameC
             </div>
           </div>
 
-          {!lostFleetMode && (
-          <>
           {/* Final Scoring Mission */}
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Final Scoring Missions
             </label>
-            <div className="flex justify-between">
-              {(Object.keys(FINAL_SCORING_NAMES) as unknown as number[]).map((id) => {
-                const numId = Number(id);
-                const isSelected = finalScoringConditions.includes(numId);
-                const isDisabled = !isSelected && finalScoringConditions.length >= 2;
-                return (
-                  <button
-                    key={numId}
-                    type="button"
-                    title={isDisabled ? 'Deselect a mission first' : getFinalScoringName(numId)}
-                    disabled={isDisabled}
-                    onClick={() => {
-                      if (isSelected) {
-                        setFinalScoringConditions(finalScoringConditions.filter((x) => x !== numId));
-                      } else {
-                        setFinalScoringConditions([...finalScoringConditions, numId]);
-                      }
-                    }}
-                    className={`rounded-md overflow-hidden transition-all ${
-                      isSelected
-                        ? 'ring-4 ring-blue-500 ring-offset-2'
-                        : isDisabled
-                        ? 'opacity-20 cursor-not-allowed'
-                        : 'opacity-60 hover:opacity-90'
-                    }`}
-                  >
-                    <Image
-                      src={`/final-scorings/${numId}.webp`}
-                      alt={getFinalScoringName(numId)}
-                      width={80}
-                      height={56}
-                    />
-                  </button>
-                );
-              })}
+            <div className="flex flex-col gap-2">
+              {(lostFleetMode ? finalScoringRowsLostFleet : finalScoringRowsBase).map((row, rowIdx) => (
+                <div key={rowIdx} className="flex justify-between">
+                  {row.map((numId) => {
+                    // Tile 10 (Lost Fleet "Planet types" art) is the same underlying
+                    // condition as tile 3 (base game) — BGA sends an identical
+                    // notifyScore desc for both, so the parser can never write 10 into
+                    // finalScorings. Selecting tile 10 searches for 3 under the hood.
+                    const searchId = FINAL_SCORING_SEARCH_ID[numId] ?? numId;
+                    const isSelected = finalScoringConditions.includes(searchId);
+                    const isDisabled = !isSelected && finalScoringConditions.length >= 2;
+                    return (
+                      <button
+                        key={numId}
+                        type="button"
+                        title={isDisabled ? 'Deselect a mission first' : getFinalScoringName(numId)}
+                        disabled={isDisabled}
+                        onClick={() => {
+                          if (isSelected) {
+                            setFinalScoringConditions(finalScoringConditions.filter((x) => x !== searchId));
+                          } else {
+                            setFinalScoringConditions([...finalScoringConditions, searchId]);
+                          }
+                        }}
+                        className={`rounded-md overflow-hidden transition-all ${
+                          isSelected
+                            ? 'ring-4 ring-blue-500 ring-offset-2'
+                            : isDisabled
+                            ? 'opacity-20 cursor-not-allowed'
+                            : 'opacity-60 hover:opacity-90'
+                        }`}
+                      >
+                        <Image
+                          src={`/final-scorings/${FINAL_SCORING_IMAGES[numId]}`}
+                          alt={getFinalScoringName(numId)}
+                          width={80}
+                          height={56}
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
           </div>
+
+          {!lostFleetMode && (
+          <>
 
           {/* Sort by */}
           <div>
