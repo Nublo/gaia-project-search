@@ -238,8 +238,8 @@ export interface PlayerRaceMapping {
   buildings: number[][]; // buildings[round] = [buildingId1, buildingId2, ...]
   research: number[][];    // research[roundIdx][trackIdx] = absolute level at end of that round (0-indexed)
   researchLevels: number[]; // [t1..t6] — current absolute levels during parsing, tracks 1-6 at indices 0-5
-  advancedTechs: number[]; // sorted array of advanced tech tile IDs (10-24) taken by this player
-  standardTechs: number[]; // sorted array of standard tech tile IDs (1-9) taken by this player
+  advancedTechs: number[]; // sorted array of advanced tech tile IDs (10-24 base, 30-36 Lost Fleet) taken by this player
+  standardTechs: number[]; // sorted array of standard tech tile IDs (1-9 base, 40-42 Lost Fleet) taken by this player
   qicPoints: number;       // VP from 2-QIC (planet diversity) and 3-QIC (rescore federation) actions
   techPoints: number;      // VP from technology tile gains and round-end tech scoring
   totalScoredPoints: number; // finalScore - startingScore
@@ -257,7 +257,7 @@ export const RESEARCH_TRACK_SHORT_NAMES: Record<number, string> = {
   6: 'Science',
 };
 
-// Advanced technology tile labels (IDs 10-24)
+// Advanced technology tile labels (IDs 10-24 base game, 30-36 Lost Fleet)
 export const ADVANCED_TECH_LABELS: Record<number, string> = {
   10: '+1Q5c',
   11: '+3ore',
@@ -274,6 +274,13 @@ export const ADVANCED_TECH_LABELS: Record<number, string> = {
   22: '+2vpKnowledgeStep',
   23: '+3vpMine',
   24: '+3vpTradingStation',
+  30: '6vpBigBuildingLF',
+  31: '4vpDeepSpaceSectorLF',
+  32: '+2vpDeepSpaceSectorLF',
+  33: '+2vpAsteroidLF',
+  34: '+2vpTerraformLF',
+  35: '+4vpGreenActionLF',
+  36: '+1vpPlanetTypeLF',
 };
 
 // Filenames for advanced tech images in /public/advanced-techs/
@@ -293,9 +300,16 @@ export const ADVANCED_TECH_IMAGES: Record<number, string> = {
   22: '22_(+2vpKnowledgeStep).webp',
   23: '23_(+3vpMine).webp',
   24: '24_(+3vpTradingStation).webp',
+  30: '30_(6vpBigBuildingLF).png',
+  31: '31_(4vpDeepSpaceSectorLF).png',
+  32: '32_(+2vpDeepSpaceSectorLF).png',
+  33: '33_(+2vpAsteroidLF).png',
+  34: '34_(+2vpTerraformLF).png',
+  35: '35_(+4vpGreenActionLF).png',
+  36: '36_(+1vpPlanetTypeLF).png',
 };
 
-// Standard technology tile labels (IDs 1-9)
+// Standard technology tile labels (IDs 1-9 base game, 40-42 Lost Fleet)
 export const STANDARD_TECH_LABELS: Record<number, string> = {
   1: '1o1q',
   2: 'KForPlanetTypes',
@@ -306,6 +320,9 @@ export const STANDARD_TECH_LABELS: Record<number, string> = {
   7: '+1k1c',
   8: '+4c',
   9: 'Charge4',
+  40: 'mineTerra2LF',
+  41: '+1navLF',
+  42: '1o3kLF',
 };
 
 // Filenames for standard tech images in /public/standart-techs/
@@ -319,7 +336,16 @@ export const STANDARD_TECH_IMAGES: Record<number, string> = {
   7: '7_(+1k1c).webp',
   8: '8_(+4c).webp',
   9: '9_(Charge4).webp',
+  40: '40_(mineTerra2LF).png',
+  41: '41_(+1navLF).png',
+  42: '42_(1o3kLF).png',
 };
+
+// KForPlanetsLF.png is a Lost-Fleet-art variant of standard tech 2
+// (KForPlanetTypes) — same underlying tile/ID, no numeric ID of its own.
+// UI-only: the picker shows this image as an extra tile whose selection
+// searches/toggles as techId 2 (see SearchForm.tsx's STANDARD_TECH_LOST_FLEET_EXTRAS).
+export const STANDARD_TECH_LOST_FLEET_ART_VARIANT_IMAGE = 'KForPlanetsLF.png';
 
 export interface BuildingAction {
   playerId: number;

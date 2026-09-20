@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import type { SearchRequest, StructureCondition, ResearchCondition, AdvancedTechCondition, StandardTechCondition } from '@/types/game';
-import { FINAL_SCORING_IMAGES, getFinalScoringName, RESEARCH_TRACK_SHORT_NAMES, ADVANCED_TECH_LABELS, ADVANCED_TECH_IMAGES, STANDARD_TECH_LABELS, STANDARD_TECH_IMAGES } from '@/lib/gaia-constants';
+import { FINAL_SCORING_IMAGES, getFinalScoringName, RESEARCH_TRACK_SHORT_NAMES, ADVANCED_TECH_LABELS, ADVANCED_TECH_IMAGES, STANDARD_TECH_LABELS, STANDARD_TECH_IMAGES, STANDARD_TECH_LOST_FLEET_ART_VARIANT_IMAGE } from '@/lib/gaia-constants';
 import { serializeSearchRequest } from '@/lib/search-url';
 
 interface FormState {
@@ -84,6 +84,41 @@ const finalScoringRowsLostFleet = [[1, 2, 4, 5, 6, 7, 8, 9, 10]];
 // identical to tile 3 ("Most planet types"), so the parser only ever writes 3
 // into finalScorings. Tile 10 is display-only art; it searches as 3.
 const FINAL_SCORING_SEARCH_ID: Record<number, number> = { 10: 3 };
+
+interface TechTile {
+  key: string;
+  searchId: number;
+  image: string;
+  label: string;
+}
+
+// Advanced tech IDs 30+ are Lost Fleet; base game only ever uses 10-24.
+function buildAdvancedTechTiles(includeLostFleet: boolean): TechTile[] {
+  return Object.keys(ADVANCED_TECH_LABELS)
+    .map(Number)
+    .filter((id) => includeLostFleet || id < 30)
+    .map((id) => ({ key: String(id), searchId: id, image: ADVANCED_TECH_IMAGES[id], label: ADVANCED_TECH_LABELS[id] }));
+}
+
+// Standard tech IDs 40+ are Lost Fleet; base game only ever uses 1-9.
+// KForPlanetsLF.png is Lost-Fleet art for the same tile as id 2 (no ID of its
+// own) — in Lost Fleet mode it replaces id 2's base art rather than showing
+// as a separate selectable tile (there's only ever one tech-2 selection).
+function getStandardTechImage(id: number, lostFleetMode: boolean): string {
+  return id === 2 && lostFleetMode ? STANDARD_TECH_LOST_FLEET_ART_VARIANT_IMAGE : STANDARD_TECH_IMAGES[id];
+}
+
+function buildStandardTechTiles(includeLostFleet: boolean): TechTile[] {
+  return Object.keys(STANDARD_TECH_LABELS)
+    .map(Number)
+    .filter((id) => includeLostFleet || id < 40)
+    .map((id) => ({
+      key: String(id),
+      searchId: id,
+      image: getStandardTechImage(id, includeLostFleet),
+      label: STANDARD_TECH_LABELS[id],
+    }));
+}
 
 // Factions sharing a home planet — can't coexist in the same game
 const FACTION_PAIRS: Record<string, string> = {
@@ -694,21 +729,21 @@ export default function SearchForm({ onSearch, isLoading = false, lostFleetGameC
                 </button>
               </div>
 
-              {/* Add advanced tech + standard tech buttons */}
+              {/* Add standard tech + advanced tech buttons */}
               <div className="mt-2 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setAdvancedTechDialogRace(fc.race)}
-                  className="px-3 h-9 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm whitespace-nowrap"
-                >
-                  Add advanced tech
-                </button>
                 <button
                   type="button"
                   onClick={() => setStandardTechDialogRace(fc.race)}
                   className="px-3 h-9 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm whitespace-nowrap"
                 >
                   Add standard tech
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAdvancedTechDialogRace(fc.race)}
+                  className="px-3 h-9 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm whitespace-nowrap"
+                >
+                  Add advanced tech
                 </button>
               </div>
 
@@ -777,7 +812,7 @@ export default function SearchForm({ onSearch, isLoading = false, lostFleetGameC
                       className="rounded-md overflow-hidden border-2 border-amber-400 hover:border-red-400 hover:opacity-70 transition-all"
                     >
                       <Image
-                        src={`/standart-techs/${STANDARD_TECH_IMAGES[techId]}`}
+                        src={`/standart-techs/${getStandardTechImage(techId, lostFleetMode)}`}
                         alt={STANDARD_TECH_LABELS[techId]}
                         width={32}
                         height={32}
@@ -983,7 +1018,7 @@ export default function SearchForm({ onSearch, isLoading = false, lostFleetGameC
       {advancedTechDialogRace && (() => {
         const fc = fractionConfigs.find((f) => f.race === advancedTechDialogRace);
         if (!fc) return null;
-        const techIds = Object.keys(ADVANCED_TECH_LABELS).map(Number);
+        const tiles = buildAdvancedTechTiles(lostFleetMode);
         return (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
@@ -1004,14 +1039,14 @@ export default function SearchForm({ onSearch, isLoading = false, lostFleetGameC
                 </button>
               </div>
               <div className="grid grid-cols-5 gap-4">
-                {techIds.map((id) => {
-                  const selected = fc.advancedTechs.includes(id);
+                {tiles.map(({ key, searchId, image, label }) => {
+                  const selected = fc.advancedTechs.includes(searchId);
                   return (
                     <button
-                      key={id}
+                      key={key}
                       type="button"
-                      title={ADVANCED_TECH_LABELS[id]}
-                      onClick={() => toggleAdvancedTech(advancedTechDialogRace, id)}
+                      title={label}
+                      onClick={() => toggleAdvancedTech(advancedTechDialogRace, searchId)}
                       className={`rounded-md overflow-hidden transition-all ${
                         selected
                           ? 'ring-4 ring-purple-500 ring-offset-2'
@@ -1019,8 +1054,8 @@ export default function SearchForm({ onSearch, isLoading = false, lostFleetGameC
                       }`}
                     >
                       <Image
-                        src={`/advanced-techs/${ADVANCED_TECH_IMAGES[id]}`}
-                        alt={ADVANCED_TECH_LABELS[id]}
+                        src={`/advanced-techs/${image}`}
+                        alt={label}
                         width={72}
                         height={72}
                       />
@@ -1037,7 +1072,7 @@ export default function SearchForm({ onSearch, isLoading = false, lostFleetGameC
       {standardTechDialogRace && (() => {
         const fc = fractionConfigs.find((f) => f.race === standardTechDialogRace);
         if (!fc) return null;
-        const techIds = Object.keys(STANDARD_TECH_LABELS).map(Number);
+        const tiles = buildStandardTechTiles(lostFleetMode);
         return (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
@@ -1058,14 +1093,14 @@ export default function SearchForm({ onSearch, isLoading = false, lostFleetGameC
                 </button>
               </div>
               <div className="grid grid-cols-3 gap-4">
-                {techIds.map((id) => {
-                  const selected = fc.standardTechs.includes(id);
+                {tiles.map(({ key, searchId, image, label }) => {
+                  const selected = fc.standardTechs.includes(searchId);
                   return (
                     <button
-                      key={id}
+                      key={key}
                       type="button"
-                      title={STANDARD_TECH_LABELS[id]}
-                      onClick={() => toggleStandardTech(standardTechDialogRace, id)}
+                      title={label}
+                      onClick={() => toggleStandardTech(standardTechDialogRace, searchId)}
                       className={`rounded-md overflow-hidden transition-all ${
                         selected
                           ? 'ring-4 ring-amber-500 ring-offset-2'
@@ -1073,8 +1108,8 @@ export default function SearchForm({ onSearch, isLoading = false, lostFleetGameC
                       }`}
                     >
                       <Image
-                        src={`/standart-techs/${STANDARD_TECH_IMAGES[id]}`}
-                        alt={STANDARD_TECH_LABELS[id]}
+                        src={`/standart-techs/${image}`}
+                        alt={label}
                         width={120}
                         height={72}
                       />
