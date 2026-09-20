@@ -7,6 +7,7 @@ export interface CollectionStats {
   playerName: string;
   totalGames: number;
   newGames: number;
+  newGamesLostFleet: number;
   skippedGames: number;
   failedGames: number;
   rateLimited: boolean;
@@ -52,6 +53,7 @@ export class GameCollector {
       playerName: playerName || `Player ${playerId}`,
       totalGames: 0,
       newGames: 0,
+      newGamesLostFleet: 0,
       skippedGames: 0,
       failedGames: 0,
       rateLimited: false,
@@ -127,8 +129,9 @@ export class GameCollector {
             const parsedGame = GameLogParser.parseGameLog(gameTable, logResponse!, tableInfo);
             await storeGame(parsedGame);
 
-            this.options.onProgress(`      ✅ Stored game ${tableId}`);
+            this.options.onProgress(`      ✅ Stored game ${tableId}${parsedGame.isLostFleet ? ' (Lost Fleet)' : ''}`);
             stats.newGames++;
+            if (parsedGame.isLostFleet) stats.newGamesLostFleet++;
             archivedLogErrors = 0; // reset on success
 
             // Rate limiting
