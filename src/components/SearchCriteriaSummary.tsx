@@ -26,6 +26,10 @@ export const RACE_IMAGE_FILES: Record<string, string> = {
   'Bescods': 'Bescods_tile.png',
   'Nevlas': 'Nevlas_tile.png',
   'Itars': 'Itars_tile.png',
+  'Tinkeroids': 'Tinkeroids_tile.png',
+  'Darkanians': 'Darkanians_tile.png',
+  'Moweyds': 'Moweyd_tile.png',
+  'Space Giants': 'SpaceGiants_tile.png',
 };
 
 function structureChipLabel(cond: StructureCondition): string {
