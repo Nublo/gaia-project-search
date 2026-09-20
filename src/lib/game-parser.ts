@@ -45,6 +45,26 @@ export function computeIsLostFleet(tableInfo: GetTableInfoResponse): boolean {
   return tableInfo.data.options?.['107']?.value === '2';
 }
 
+/**
+ * Detect irrefutable evidence of the Lost Fleet expansion directly in the log:
+ * exploring one of the Lost Fleet spaceships (notifyGeneric with a shipType)
+ * can only happen when the expansion is enabled — no base-game event produces
+ * this field. Confirmed present in every real Lost Fleet log sample gathered
+ * so far (more consistently than gaining an artifact token, which requires an
+ * extra, optional action). Used as a cross-check against computeIsLostFleet's
+ * table-info signal, in case option 107 is ever missing/wrong for a table.
+ */
+export function hasLostFleetShipExplorationEvidence(logs: GetGameLogResponse['data']['logs']): boolean {
+  for (const packet of logs) {
+    for (const event of packet.data) {
+      if (event.type === EventType.NOTIFY_GENERIC && event.args?.shipType !== undefined) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 // ============================================================================
 // PARSED GAME DATA
 // ============================================================================
@@ -427,6 +447,19 @@ export class GameLogParser {
       scores.every((s) => s === 0 || s === 1);
     const isComplete = hadRound6 && !hasPlaceholderScores;
 
+    // Lost Fleet detection: table-info option 107 is primary, but exploring a
+    // Lost Fleet spaceship in the log is irrefutable evidence on its own —
+    // mark the game as Lost Fleet if either signal says so, and flag any
+    // mismatch for review (it would mean option 107 missed a real Lost Fleet game).
+    const isLostFleetFromOptions = computeIsLostFleet(tableInfo);
+    const isLostFleetFromShipExploration = hasLostFleetShipExplorationEvidence(logs);
+    if (isLostFleetFromShipExploration && !isLostFleetFromOptions) {
+      console.warn(
+        `[Parser] Table ${gameTable.table_id}: Lost Fleet ship-exploration evidence found in the log, ` +
+        `but table-info option 107 does not indicate Lost Fleet. Marking as Lost Fleet anyway.`
+      );
+    }
+
     // Build the parsed data object
     const parsedData: ParsedGameData = {
       tableId: gameTable.table_id,
@@ -437,7 +470,7 @@ export class GameLogParser {
       finalScorings,
       isComplete,
       isAuction: computeIsAuction(players),
-      isLostFleet: computeIsLostFleet(tableInfo),
+      isLostFleet: isLostFleetFromOptions || isLostFleetFromShipExploration,
       rawLog: logResponse,
     };
 

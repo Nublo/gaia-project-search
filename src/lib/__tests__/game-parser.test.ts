@@ -1,7 +1,7 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
-import { GameLogParser, computeIsLostFleet } from '../game-parser'
+import { GameLogParser, computeIsLostFleet, hasLostFleetShipExplorationEvidence } from '../game-parser'
 import type { GameTableInfo, GetGameLogResponse, GetTableInfoResponse } from '../bga-types'
 
 // ============================================================================
@@ -187,6 +187,13 @@ function gameEndEvent(results: { id: string; name: string; score: string }[]) {
   return {
     type: 'gameStateChange',
     args: { args: { result: results } },
+  }
+}
+
+function shipExploreEvent(playerName: string, shipType: number) {
+  return {
+    type: 'notifyGeneric',
+    args: { payStr: '[VP5]', shipType, player_name: playerName },
   }
 }
 
@@ -991,6 +998,74 @@ describe('computeIsLostFleet', () => {
   it('returns false when option 107 is absent entirely', () => {
     const tableInfo = makeTableInfo()
     expect(computeIsLostFleet(tableInfo)).toBe(false)
+  })
+})
+
+describe('hasLostFleetShipExplorationEvidence', () => {
+  it('returns true when the log contains a spaceship exploration event', () => {
+    const logResponse = makeLogResponse([shipExploreEvent('Alice', 18)])
+    expect(hasLostFleetShipExplorationEvidence(logResponse.data.logs)).toBe(true)
+  })
+
+  it('returns false for a log with no ship-exploration events', () => {
+    const logResponse = makeLogResponse([
+      chooseRaceEvent(1, 'Alice', 1),
+      roundEndEvent(6),
+    ])
+    expect(hasLostFleetShipExplorationEvidence(logResponse.data.logs)).toBe(false)
+  })
+})
+
+describe('GameLogParser.parseGameLog — ship-exploration evidence overrides table-info option', () => {
+  it('marks isLostFleet true from ship-exploration evidence even when option 107 says disabled', () => {
+    const tableInfo = makeTableInfo({ options: { '107': { name: 'Lost Fleet Expansion', value: '1' } } })
+    const result = GameLogParser.parseGameLog(
+      makeGameTable(),
+      makeLogResponse([
+        chooseRaceEvent(1, 'Alice', 1),
+        chooseRaceEvent(2, 'Bob', 2),
+        shipExploreEvent('Alice', 18),
+        roundEndEvent(6),
+        gameEndEvent([
+          { id: '1', name: 'Alice', score: '120' },
+          { id: '2', name: 'Bob', score: '110' },
+        ]),
+      ]),
+      tableInfo
+    )
+    expect(result.isLostFleet).toBe(true)
+  })
+
+  it('logs a warning when ship-exploration evidence contradicts table-info option 107', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const tableInfo = makeTableInfo({ options: { '107': { name: 'Lost Fleet Expansion', value: '1' } } })
+    GameLogParser.parseGameLog(
+      makeGameTable(),
+      makeLogResponse([
+        chooseRaceEvent(1, 'Alice', 1),
+        shipExploreEvent('Alice', 18),
+        roundEndEvent(6),
+      ]),
+      tableInfo
+    )
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Lost Fleet ship-exploration evidence found'))
+    warnSpy.mockRestore()
+  })
+
+  it('does not warn when table-info option 107 already agrees', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const tableInfo = makeTableInfo({ options: { '107': { name: 'Lost Fleet Expansion', value: '2' } } })
+    GameLogParser.parseGameLog(
+      makeGameTable(),
+      makeLogResponse([
+        chooseRaceEvent(1, 'Alice', 1),
+        shipExploreEvent('Alice', 18),
+        roundEndEvent(6),
+      ]),
+      tableInfo
+    )
+    expect(warnSpy).not.toHaveBeenCalled()
+    warnSpy.mockRestore()
   })
 })
 
