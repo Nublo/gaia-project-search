@@ -134,6 +134,10 @@ export enum EventType {
   // Technology tiles
   NOTIFY_GAIN_TECH = 'notifyGainTech', // Gaining a technology tile (coverupTechId != 0 means advanced tech)
 
+  // Lost Fleet expansion — gaining an artifact token (irrefutable evidence
+  // of the expansion, regardless of table-info options)
+  NOTIFY_DISCARD = 'notifyDiscard',
+
   // QIC actions and resource gains
   NOTIFY_ACTION = 'notifyAction',
   NOTIFY_GAIN_RESOURCE = 'notifyGainResource',
