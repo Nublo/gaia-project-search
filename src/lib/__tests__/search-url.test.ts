@@ -280,3 +280,34 @@ describe('isAuction', () => {
     expect(roundtrip({ ...EMPTY, isAuction: false }).isAuction).toBe(false);
   });
 });
+
+describe('isLostFleet', () => {
+  it('omits isLostFleet from the query when undefined', () => {
+    expect(serializeSearchRequest(EMPTY)).not.toContain('isLostFleet');
+  });
+
+  it('serializes isLostFleet=true', () => {
+    expect(serializeSearchRequest({ ...EMPTY, isLostFleet: true })).toBe('isLostFleet=true');
+  });
+
+  it('serializes isLostFleet=false', () => {
+    expect(serializeSearchRequest({ ...EMPTY, isLostFleet: false })).toBe('isLostFleet=false');
+  });
+
+  it('deserializes isLostFleet=true to boolean true', () => {
+    expect(deserializeSearchRequest({ isLostFleet: 'true' }).isLostFleet).toBe(true);
+  });
+
+  it('deserializes isLostFleet=false to boolean false', () => {
+    expect(deserializeSearchRequest({ isLostFleet: 'false' }).isLostFleet).toBe(false);
+  });
+
+  it('leaves isLostFleet undefined when absent', () => {
+    expect(deserializeSearchRequest({}).isLostFleet).toBeUndefined();
+  });
+
+  it('roundtrips both boolean values', () => {
+    expect(roundtrip({ ...EMPTY, isLostFleet: true }).isLostFleet).toBe(true);
+    expect(roundtrip({ ...EMPTY, isLostFleet: false }).isLostFleet).toBe(false);
+  });
+});

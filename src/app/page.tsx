@@ -18,7 +18,7 @@ const getGameCount = unstable_cache(
 );
 
 const getLostFleetCount = unstable_cache(
-  () => prisma.game.count({ where: { isLostFleet: true } }),
+  () => prisma.game.count({ where: { isLostFleet: true, isComplete: true } }),
   ['lost-fleet-game-count'],
   { revalidate: CACHE_REVALIDATE_SECONDS, tags: [CACHE_TAG_LOST_FLEET_COUNT] }
 );

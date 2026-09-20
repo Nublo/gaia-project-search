@@ -27,6 +27,7 @@ export async function searchGames(req: SearchRequest): Promise<SearchGamesResult
     winnerPlayerName,
     minPlayerElo,
     isAuction,
+    isLostFleet,
     playerNames = [],
     playerCounts = [],
     structureConditions = [],
@@ -37,8 +38,9 @@ export async function searchGames(req: SearchRequest): Promise<SearchGamesResult
     playerRaceConditions = [],
   } = req;
 
-  // Lost Fleet games are not yet searchable — always excluded, not user-toggleable.
-  const andConditions: Prisma.GameWhereInput[] = [{ isComplete: true }, { isLostFleet: false }];
+  // Lost Fleet and base-game results never mix — strictly partitioned by the
+  // caller's isLostFleet flag (defaults to base games when omitted).
+  const andConditions: Prisma.GameWhereInput[] = [{ isComplete: true }, { isLostFleet: isLostFleet ?? false }];
 
   if (minPlayerElo) {
     andConditions.push({ minPlayerElo: { gte: minPlayerElo } });
@@ -297,6 +299,7 @@ export async function searchGames(req: SearchRequest): Promise<SearchGamesResult
     minPlayerElo: true,
     finalScorings: true,
     isAuction: true,
+    isLostFleet: true,
     players: {
       select: {
         id: true,
@@ -407,7 +410,7 @@ export interface LeaderboardSection {
   games: GameResult[];
 }
 
-export async function getLeaderboardGames(limit = 3): Promise<LeaderboardSection[]> {
+export async function getLeaderboardGames(limit = 3, isLostFleet = false): Promise<LeaderboardSection[]> {
   const GAME_SELECT = {
     id: true,
     tableId: true,
@@ -416,6 +419,7 @@ export async function getLeaderboardGames(limit = 3): Promise<LeaderboardSection
     minPlayerElo: true,
     finalScorings: true,
     isComplete: true,
+    isLostFleet: true,
     players: {
       select: {
         id: true,
@@ -454,7 +458,7 @@ export async function getLeaderboardGames(limit = 3): Promise<LeaderboardSection
         SELECT p.table_id
         FROM players p
         JOIN games g ON g.table_id = p.table_id
-        WHERE g.is_complete = true
+        WHERE g.is_complete = true AND g.is_lost_fleet = ${isLostFleet}
         GROUP BY p.table_id
         ORDER BY MAX(p.${Prisma.raw(column)}) DESC
         LIMIT ${limit}
@@ -507,6 +511,7 @@ export async function getAnalytics(req: SearchRequest, selectedGroup?: string[])
     winnerPlayerName,
     minPlayerElo,
     isAuction,
+    isLostFleet,
     playerNames = [],
     playerCounts = [],
     structureConditions = [],
@@ -525,8 +530,9 @@ export async function getAnalytics(req: SearchRequest, selectedGroup?: string[])
   // Always enforce completed multi-player games
   andConditions.push({ isComplete: true });
   andConditions.push({ playerCount: { gt: 1 } });
-  // Lost Fleet games are not yet searchable — always excluded, not user-toggleable.
-  andConditions.push({ isLostFleet: false });
+  // Lost Fleet and base-game stats never mix — strictly partitioned by the
+  // caller's isLostFleet flag (defaults to base games when omitted).
+  andConditions.push({ isLostFleet: isLostFleet ?? false });
 
   if (minPlayerElo) {
     andConditions.push({ minPlayerElo: { gte: minPlayerElo } });

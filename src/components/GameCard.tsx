@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import type { GameResult, PlayerResult, SearchRequest, StructureCondition, ResearchCondition, AdvancedTechCondition, StandardTechCondition } from '@/types/game';
-import { RACE_NAMES, getFinalScoringName, ADVANCED_TECH_LABELS, ADVANCED_TECH_IMAGES, STANDARD_TECH_LABELS, RESEARCH_TRACK_SHORT_NAMES } from '@/lib/gaia-constants';
+import { RACE_NAMES, getFinalScoringName, FINAL_SCORING_IMAGES, ADVANCED_TECH_LABELS, ADVANCED_TECH_IMAGES, STANDARD_TECH_LABELS, RESEARCH_TRACK_SHORT_NAMES } from '@/lib/gaia-constants';
 
 const RACE_BADGE_CLASS: Record<string, string> = {
   'Terrans':      'bg-blue-600 text-white',
@@ -17,6 +17,10 @@ const RACE_BADGE_CLASS: Record<string, string> = {
   'Nevlas':       'bg-white text-gray-700 border border-gray-300',
   'Ambas':        'bg-amber-800 text-white',
   'Taklons':      'bg-amber-800 text-white',
+  'Moweyds':      'bg-cyan-500 text-white',
+  'Space Giants': 'bg-cyan-500 text-white',
+  'Tinkeroids':   'bg-purple-600 text-white',
+  'Darkanians':   'bg-purple-600 text-white',
 };
 
 const STRUCTURE_LABELS: Record<string, string> = {
@@ -194,7 +198,7 @@ export default function GameCard({ game, structureConditions = [], researchCondi
                   className={isHighlighted ? 'rounded ring-4 ring-blue-500 ring-offset-2' : 'rounded'}
                 >
                   <Image
-                    src={`/final-scorings/${id}.webp`}
+                    src={`/final-scorings/${FINAL_SCORING_IMAGES[id]}`}
                     alt={getFinalScoringName(id)}
                     title={getFinalScoringName(id)}
                     width={80}

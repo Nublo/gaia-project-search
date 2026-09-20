@@ -21,13 +21,16 @@ export default async function LeaderboardPage({
 }) {
   const params = await searchParams;
   const count = Math.max(1, parseInt(String(params.count ?? '3'), 10) || 3);
-  const sections = await getLeaderboardGames(count);
+  const isLostFleet = String(params.isLostFleet) === 'true';
+  const sections = await getLeaderboardGames(count, isLostFleet);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 py-8">
       <div className="container mx-auto px-4">
         <div className="w-full max-w-4xl mx-auto px-6 pt-2 pb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Leaderboard</h1>
+          <h1 className="text-3xl font-bold text-gray-900">
+            Leaderboard{isLostFleet ? ' — Lost Fleet' : ''}
+          </h1>
         </div>
 
         {sections.map(({ category, label, games }) => (

@@ -9,6 +9,7 @@ export interface GameResult {
   finalScorings: number[];
   isComplete: boolean;
   isAuction: boolean;
+  isLostFleet: boolean;
   players: PlayerResult[];
 }
 
@@ -51,6 +52,7 @@ export interface SearchRequest {
   winnerPlayerName?: string;
   minPlayerElo?: number;
   isAuction?: boolean;
+  isLostFleet?: boolean;
   playerNames: string[][];
   playerCounts: number[];
   structureConditions: StructureCondition[];

@@ -222,6 +222,7 @@ export default function SearchForm({ onSearch, isLoading = false, lostFleetGameC
       standardTechConditions,
       playerRaceConditions,
       sortBy: (sortBy as SearchRequest['sortBy']) || undefined,
+      isLostFleet: lostFleetMode,
     };
   };
 
@@ -377,7 +378,7 @@ export default function SearchForm({ onSearch, isLoading = false, lostFleetGameC
       {lostFleetMode && (
         <p className="mb-4 text-sm text-gray-600 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
           Lost Fleet game support is currently in development. There are currently{' '}
-          <strong>{lostFleetGameCount}</strong> Lost Fleet games in the database.
+          <strong>{lostFleetGameCount}</strong> finished Lost Fleet games in the database.
         </p>
       )}
 
@@ -472,9 +473,6 @@ export default function SearchForm({ onSearch, isLoading = false, lostFleetGameC
               ))}
             </div>
           </div>
-
-          {!lostFleetMode && (
-          <>
 
           {/* Sort by */}
           <div>
@@ -579,8 +577,6 @@ export default function SearchForm({ onSearch, isLoading = false, lostFleetGameC
               )}
             </div>
           </div>
-          </>
-          )}
         </div>
       </div>
 
@@ -866,8 +862,6 @@ export default function SearchForm({ onSearch, isLoading = false, lostFleetGameC
           ))}
         </div>
 
-        {!lostFleetMode && (
-        <>
         {/* Amount of Players + Player Name — side by side */}
         <div className="mb-4 flex gap-4">
         {/* Amount of Players Section */}
@@ -1010,8 +1004,6 @@ export default function SearchForm({ onSearch, isLoading = false, lostFleetGameC
           )}
         </div>
         </div> {/* end flex row */}
-        </>
-        )}
       </div>
 
       {/* Advanced Tech Dialog */}
@@ -1122,8 +1114,6 @@ export default function SearchForm({ onSearch, isLoading = false, lostFleetGameC
         );
       })()}
 
-      {!lostFleetMode && (
-      <>
       {/* Buttons */}
       <div className="flex gap-4">
         <button
@@ -1146,14 +1136,21 @@ export default function SearchForm({ onSearch, isLoading = false, lostFleetGameC
         </button>
         <button
           type="button"
+          onClick={() => {
+            window.open(`/leaderboard?isLostFleet=${lostFleetMode}`, '_blank');
+          }}
+          className="flex-1 bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors text-center"
+        >
+          Leaderboard
+        </button>
+        <button
+          type="button"
           onClick={handleReset}
           className="px-6 py-2 border border-gray-300 rounded-md text-gray-900 hover:bg-gray-50 transition-colors"
         >
           Reset
         </button>
       </div>
-      </>
-      )}
     </form>
   );
 }

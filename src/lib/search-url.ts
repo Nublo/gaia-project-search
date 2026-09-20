@@ -48,6 +48,7 @@ export function serializeSearchRequest(req: SearchRequest): string {
   if (req.winnerPlayerName) params.set('winnerPlayer', req.winnerPlayerName);
   if (req.minPlayerElo != null) params.set('minElo', String(req.minPlayerElo));
   if (req.isAuction != null) params.set('isAuction', String(req.isAuction));
+  if (req.isLostFleet != null) params.set('isLostFleet', String(req.isLostFleet));
   if (req.sortBy) params.set('sortBy', req.sortBy);
 
   // URLSearchParams encodes ':' and '|' but both are safe in query values — keep them readable.
@@ -129,6 +130,7 @@ export function deserializeSearchRequest(raw: Record<string, string | string[] |
     winnerPlayerName: str('winnerPlayer'),
     minPlayerElo: num('minElo'),
     isAuction: str('isAuction') === 'true' ? true : str('isAuction') === 'false' ? false : undefined,
+    isLostFleet: str('isLostFleet') === 'true' ? true : str('isLostFleet') === 'false' ? false : undefined,
     sortBy: str('sortBy') as SearchRequest['sortBy'],
   };
 }
