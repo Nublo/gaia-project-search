@@ -176,6 +176,22 @@ export default function SearchForm({ onSearch, isLoading = false, lostFleetGameC
       .catch(() => {});
   }, []);
 
+  // Allow sharing a link to the home page that opens with Lost Fleet mode
+  // already enabled, e.g. https://.../?isLostFleet=true
+  //
+  // This must run post-mount, not via a useState lazy initializer: the home
+  // page is statically cached (revalidate: 86400 in page.tsx), so the
+  // server-rendered HTML is identical for every visitor regardless of query
+  // string. Reading window.location.search during the initial render would
+  // make the client's first render disagree with that cached markup and
+  // trigger a hydration mismatch.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('isLostFleet') === 'true') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setLostFleetMode(true);
+    }
+  }, []);
+
   const suggestions =
     criteria.playerName && criteria.playerName.length >= 2
       ? allPlayerNames
@@ -352,6 +368,15 @@ export default function SearchForm({ onSearch, isLoading = false, lostFleetGameC
       <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
         <h2 className="text-2xl font-bold text-gray-800">Search Gaia Project Games</h2>
         <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 whitespace-nowrap text-sm font-medium text-gray-700">
+            <input
+              type="checkbox"
+              checked={lostFleetMode}
+              onChange={(e) => setLostFleetMode(e.target.checked)}
+              className="h-6 w-6 rounded border-gray-300"
+            />
+            Lost fleet
+          </label>
           <a
             href="https://youtu.be/2IvyBkVahBo?si=ea_GtfIn6MzEirn7"
             target="_blank"
@@ -363,15 +388,6 @@ export default function SearchForm({ onSearch, isLoading = false, lostFleetGameC
             </svg>
             Watch tutorial
           </a>
-          <label className="flex items-center gap-2 whitespace-nowrap text-sm font-medium text-gray-700">
-            <input
-              type="checkbox"
-              checked={lostFleetMode}
-              onChange={(e) => setLostFleetMode(e.target.checked)}
-              className="h-6 w-6 rounded border-gray-300"
-            />
-            Lost fleet
-          </label>
         </div>
       </div>
 
