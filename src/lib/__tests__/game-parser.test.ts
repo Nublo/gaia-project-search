@@ -853,6 +853,118 @@ describe('GameLogParser — QIC and tech points', () => {
     const result = GameLogParser.parseGameLog(makeGameTable(), logResponse, tableInfo)
     expect(result.players[0].qicPoints).toBe(0) // Pending cleared at end of packet 2
   })
+
+  it('accumulates QIC points from Lost Fleet actionId=31 (T F Mars) and 32 (Eclipse)', () => {
+    const logResponse: GetGameLogResponse = {
+      status: 1,
+      data: {
+        logs: [
+          {
+            channel: '',
+            table_id: '820488760',
+            packet_id: '1',
+            packet_type: 'history',
+            move_id: '1',
+            time: '1700000000',
+            data: [chooseRaceEvent(1, 'Alice', 1), roundEndEvent(6)],
+          },
+          {
+            channel: '',
+            table_id: '820488760',
+            packet_id: '2',
+            packet_type: 'history',
+            move_id: '2',
+            time: '1700000001',
+            data: [
+              { type: 'notifyAction', args: { playerId: '1', actionId: '31' } },
+              // 31/32 combine pay + gain into a single notifyGainResource event
+              { type: 'notifyGainResource', args: { playerId: '1', payStr: '[QIC2]', gainStr: '[VP7]' } },
+              { type: 'notifyAction', args: { playerId: '1', actionId: '32' } },
+              { type: 'notifyGainResource', args: { playerId: '1', payStr: '[QIC2]', gainStr: '[VP9]' } },
+            ],
+          },
+        ],
+      },
+    }
+
+    const tableInfo = makeTableInfo({ players: [{ player_id: '1', gamerank: '1', rank_after_game: '2600' }] })
+    const result = GameLogParser.parseGameLog(makeGameTable(), logResponse, tableInfo)
+    expect(result.players[0].qicPoints).toBe(16)
+  })
+
+  it('accumulates QIC points from Lost Fleet actionId=30 (Twilight) with gain-before-pay ordering', () => {
+    const logResponse: GetGameLogResponse = {
+      status: 1,
+      data: {
+        logs: [
+          {
+            channel: '',
+            table_id: '820488760',
+            packet_id: '1',
+            packet_type: 'history',
+            move_id: '1',
+            time: '1700000000',
+            data: [chooseRaceEvent(1, 'Alice', 1), roundEndEvent(6)],
+          },
+          {
+            channel: '',
+            table_id: '820488760',
+            packet_id: '2',
+            packet_type: 'history',
+            move_id: '2',
+            time: '1700000001',
+            data: [
+              { type: 'notifyAction', args: { playerId: '1', actionId: '30' } },
+              // Rescored federation token's gain fires before the QIC payment event
+              { type: 'notifyGainResource', args: { playerId: '1', gainStr: '[VP4][ORE2][QIC1]' } },
+              { type: 'notifyGainResource', args: { playerId: '1', payStr: '[QIC3]' } },
+            ],
+          },
+        ],
+      },
+    }
+
+    const tableInfo = makeTableInfo({ players: [{ player_id: '1', gamerank: '1', rank_after_game: '2600' }] })
+    const result = GameLogParser.parseGameLog(makeGameTable(), logResponse, tableInfo)
+    expect(result.players[0].qicPoints).toBe(4)
+  })
+
+  it('does not award QIC points from actionId=30 when the rescored token grants a non-VP effect', () => {
+    const logResponse: GetGameLogResponse = {
+      status: 1,
+      data: {
+        logs: [
+          {
+            channel: '',
+            table_id: '820488760',
+            packet_id: '1',
+            packet_type: 'history',
+            move_id: '1',
+            time: '1700000000',
+            data: [chooseRaceEvent(1, 'Alice', 1), roundEndEvent(6)],
+          },
+          {
+            channel: '',
+            table_id: '820488760',
+            packet_id: '2',
+            packet_type: 'history',
+            move_id: '2',
+            time: '1700000001',
+            data: [
+              { type: 'notifyAction', args: { playerId: '1', actionId: '30' } },
+              // Payment event arrives first with no gainStr; the token's "other effect" is a tech gain, not VP
+              { type: 'notifyGainResource', args: { playerId: '1', payStr: '[QIC3]' } },
+              { type: 'notifyGainTech', args: { playerId: '1' } },
+            ],
+          },
+        ],
+      },
+    }
+
+    const tableInfo = makeTableInfo({ players: [{ player_id: '1', gamerank: '1', rank_after_game: '2600' }] })
+    const result = GameLogParser.parseGameLog(makeGameTable(), logResponse, tableInfo)
+    expect(result.players[0].qicPoints).toBe(0)
+  })
 })
 
 // ============================================================================

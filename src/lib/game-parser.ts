@@ -252,10 +252,17 @@ export class GameLogParser {
           }
         }
 
-        // Track QIC actions (actionId 6 = planet diversity, 7 = rescore federation)
+        // Track QIC actions:
+        // - Base game: 6 = planet diversity, 7 = rescore federation
+        // - Lost Fleet (relocated onto spaceship boards once the expansion covers the
+        //   base-game QIC actions): 30 = Twilight rescore federation, 31 = T F Mars
+        //   VP-per-standard-tech, 32 = Eclipse planet diversity. actionId 30's VP (if
+        //   any — the rescored token's "other effect" can be non-VP, e.g. a tech gain)
+        //   still arrives via a notifyGainResource for the same player, so it's handled
+        //   by the same pending-state/gainStr consumption below without extra logic.
         if (eventType === EventType.NOTIFY_ACTION) {
           const actionId = parseInt(event.args?.actionId);
-          if (actionId === 6 || actionId === 7) {
+          if (actionId === 6 || actionId === 7 || actionId === 30 || actionId === 31 || actionId === 32) {
             pendingQicActionPlayerId = parseInt(event.args?.playerId);
           }
         }
