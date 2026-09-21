@@ -41,6 +41,16 @@ describe('searchGames — Lost Fleet / base-game partition', () => {
     const { where } = findMany.mock.calls[0][0]
     expect(where.AND).toEqual(expect.arrayContaining([{ isLostFleet: false }]))
   })
+
+  it('filters by artifacts, one AND condition per selected artifact', async () => {
+    await searchGames({ ...BASE_REQ, artifacts: [6, 12] })
+
+    const { where } = findMany.mock.calls[0][0]
+    expect(where.AND).toEqual(expect.arrayContaining([
+      { artifacts: { has: 6 } },
+      { artifacts: { has: 12 } },
+    ]))
+  })
 })
 
 describe('getAnalytics — Lost Fleet / base-game partition', () => {
@@ -62,5 +72,15 @@ describe('getAnalytics — Lost Fleet / base-game partition', () => {
     const { where } = findMany.mock.calls[0][0]
     expect(where.AND).toEqual(expect.arrayContaining([{ isLostFleet: true }]))
     expect(where.AND).not.toEqual(expect.arrayContaining([{ isLostFleet: false }]))
+  })
+
+  it('filters by artifacts, one AND condition per selected artifact', async () => {
+    await getAnalytics({ ...BASE_REQ, artifacts: [6, 12] })
+
+    const { where } = findMany.mock.calls[0][0]
+    expect(where.AND).toEqual(expect.arrayContaining([
+      { artifacts: { has: 6 } },
+      { artifacts: { has: 12 } },
+    ]))
   })
 })

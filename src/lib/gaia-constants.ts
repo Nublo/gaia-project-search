@@ -140,6 +140,9 @@ export enum EventType {
 
   // Generic notifications (e.g. auction results)
   NOTIFY_GENERIC = 'notifyGeneric',
+
+  // Full board state sync (used to read Lost Fleet spaceship state, e.g. artifacts)
+  NOTIFY_UPDATE = 'notifyUpdate',
 }
 
 // ============================================================================
@@ -209,6 +212,67 @@ export const FINAL_SCORING_DESC_TO_ID: Record<string, number> = {
 
 export function getFinalScoringName(id: number): string {
   return FINAL_SCORING_NAMES[id as FinalScoringType] || `Unknown Scoring (${id})`;
+}
+
+// ============================================================================
+// LOST FLEET ARTIFACTS
+// ============================================================================
+
+// 13 Artifact tokens, exclusive to the Lost Fleet expansion. A game can have
+// at most 4 of them (1 per player). IDs match the raw `availArtifacts` values
+// found on the Twilight spaceship in the game log 1:1 — no translation needed.
+export enum ArtifactType {
+  ASTEROID_MINE_VP = 1,
+  PROTOPLANET_MINE_VP = 2,
+  GAIA_FORMING_STEP_VP = 3,
+  SCIENCE_STEP_VP = 4,
+  RESEARCH_LEVEL_3_VP = 5,
+  DEEP_SPACE_SECTOR_VP = 6,
+  PLANET_TYPE_VP = 7,
+  KNOWLEDGE_AND_QIC = 8,
+  CREDIT_AND_ORE_SMALL = 9,
+  CREDIT_AND_ORE_LARGE = 10,
+  COPY_FEDERATION = 11,
+  POWER_INCOME_AREA_3 = 12,
+  ORE_AND_KNOWLEDGE = 13,
+}
+
+export const ARTIFACT_NAMES: Record<ArtifactType, string> = {
+  [ArtifactType.ASTEROID_MINE_VP]: '+7 VP (counts as an Asteroid mine)',
+  [ArtifactType.PROTOPLANET_MINE_VP]: '+7 VP (counts as a Protoplanet mine)',
+  [ArtifactType.GAIA_FORMING_STEP_VP]: '+3 VP per Gaia Forming level',
+  [ArtifactType.SCIENCE_STEP_VP]: '+3 VP per Science level',
+  [ArtifactType.RESEARCH_LEVEL_3_VP]: '+3 VP per Research Area at level 3+',
+  [ArtifactType.DEEP_SPACE_SECTOR_VP]: '+3 VP per Deep Space sector',
+  [ArtifactType.PLANET_TYPE_VP]: '+3 VP + 1 VP per Planet type',
+  [ArtifactType.KNOWLEDGE_AND_QIC]: '+3 Knowledge + 1 QIC',
+  [ArtifactType.CREDIT_AND_ORE_SMALL]: '+3 Credits + 3 Ore',
+  [ArtifactType.CREDIT_AND_ORE_LARGE]: '+5 Credits + 2 Ore',
+  [ArtifactType.COPY_FEDERATION]: 'Copy a Federation token',
+  [ArtifactType.POWER_INCOME_AREA_3]: '+2 Power income (Area III)',
+  [ArtifactType.ORE_AND_KNOWLEDGE]: '+1 Ore + 1 Knowledge',
+};
+
+// Filenames for artifact images in /public/artifacts/ — token 13's file is
+// missing the underscore other files have ("13(+1o1k).png"), kept as-is.
+export const ARTIFACT_IMAGES: Record<ArtifactType, string> = {
+  [ArtifactType.ASTEROID_MINE_VP]: '1_(7vpAsteroidMine).png',
+  [ArtifactType.PROTOPLANET_MINE_VP]: '2_(7vpProtoPlanetMine).png',
+  [ArtifactType.GAIA_FORMING_STEP_VP]: '3_(3vpGaiaStep).png',
+  [ArtifactType.SCIENCE_STEP_VP]: '4_(3vpScienceStep).png',
+  [ArtifactType.RESEARCH_LEVEL_3_VP]: '5_(3vpTechLevel3Step).png',
+  [ArtifactType.DEEP_SPACE_SECTOR_VP]: '6_(3vpDeepSpaceSector).png',
+  [ArtifactType.PLANET_TYPE_VP]: '7_(1vpPlanetType+3vp).png',
+  [ArtifactType.KNOWLEDGE_AND_QIC]: '8_(3k1q).png',
+  [ArtifactType.CREDIT_AND_ORE_SMALL]: '9_(3c3o).png',
+  [ArtifactType.CREDIT_AND_ORE_LARGE]: '10_(5c2o).png',
+  [ArtifactType.COPY_FEDERATION]: '11_(copyFed).png',
+  [ArtifactType.POWER_INCOME_AREA_3]: '12_(+2tokensBowl3).png',
+  [ArtifactType.ORE_AND_KNOWLEDGE]: '13(+1o1k).png',
+};
+
+export function getArtifactName(id: number): string {
+  return ARTIFACT_NAMES[id as ArtifactType] || `Unknown Artifact (${id})`;
 }
 
 // ============================================================================

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import type { SearchRequest, StructureCondition, ResearchCondition, AdvancedTechCondition, StandardTechCondition } from '@/types/game';
-import { FINAL_SCORING_IMAGES, getFinalScoringName, RESEARCH_TRACK_SHORT_NAMES, ADVANCED_TECH_LABELS, ADVANCED_TECH_IMAGES, STANDARD_TECH_LABELS, STANDARD_TECH_IMAGES, STANDARD_TECH_LOST_FLEET_ART_VARIANT_IMAGE } from '@/lib/gaia-constants';
+import { FINAL_SCORING_IMAGES, getFinalScoringName, RESEARCH_TRACK_SHORT_NAMES, ADVANCED_TECH_LABELS, ADVANCED_TECH_IMAGES, STANDARD_TECH_LABELS, STANDARD_TECH_IMAGES, STANDARD_TECH_LOST_FLEET_ART_VARIANT_IMAGE, ArtifactType, ARTIFACT_IMAGES, getArtifactName } from '@/lib/gaia-constants';
 import { serializeSearchRequest } from '@/lib/search-url';
 
 interface FormState {
@@ -84,6 +84,10 @@ const finalScoringRowsLostFleet = [[1, 2, 4, 5, 6, 7, 8, 9, 10]];
 // into finalScorings. Tile 10 is display-only art; it searches as 3.
 const FINAL_SCORING_SEARCH_ID: Record<number, number> = { 10: 3 };
 
+const ARTIFACT_IDS = Object.values(ArtifactType).filter((v): v is number => typeof v === 'number');
+const artifactRows = chunk(ARTIFACT_IDS, 7); // 13 artifacts: 2 rows (7 + 6)
+const MAX_ARTIFACT_CONDITIONS = 4; // at most 4 artifacts can ever be present in a game (1 per player)
+
 interface TechTile {
   key: string;
   searchId: number;
@@ -158,6 +162,7 @@ export default function SearchForm({ onSearch, isLoading = false, lostFleetGameC
   const [playerNameConditions, setPlayerNameConditions] = useState<string[][]>([]);
   const [playerCountConditions, setPlayerCountConditions] = useState<number[]>([]);
   const [finalScoringConditions, setFinalScoringConditions] = useState<number[]>([]);
+  const [artifactConditions, setArtifactConditions] = useState<number[]>([]);
 
   // Player name autocomplete
   const [allPlayerNames, setAllPlayerNames] = useState<string[]>([]);
@@ -232,6 +237,7 @@ export default function SearchForm({ onSearch, isLoading = false, lostFleetGameC
       structureConditions,
       researchConditions,
       finalScorings: finalScoringConditions,
+      artifacts: artifactConditions,
       advancedTechConditions,
       standardTechConditions,
       playerRaceConditions,
@@ -255,6 +261,7 @@ export default function SearchForm({ onSearch, isLoading = false, lostFleetGameC
     setPlayerNameConditions([]);
     setPlayerCountConditions([]);
     setFinalScoringConditions([]);
+    setArtifactConditions([]);
   };
 
   function defaultFractionConfig(name: string): FractionConfig {
@@ -487,6 +494,54 @@ export default function SearchForm({ onSearch, isLoading = false, lostFleetGameC
               ))}
             </div>
           </div>
+
+          {/* Artifacts (Lost Fleet only) */}
+          {lostFleetMode && (
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Artifacts
+              </label>
+              <div className="flex flex-col gap-2">
+                {artifactRows.map((row, rowIdx) => (
+                  <div key={rowIdx} className="flex justify-between">
+                    {row.map((artifactId) => {
+                      const isSelected = artifactConditions.includes(artifactId);
+                      const isDisabled = !isSelected && artifactConditions.length >= MAX_ARTIFACT_CONDITIONS;
+                      return (
+                        <button
+                          key={artifactId}
+                          type="button"
+                          title={isDisabled ? 'Deselect an artifact first' : getArtifactName(artifactId)}
+                          disabled={isDisabled}
+                          onClick={() => {
+                            if (isSelected) {
+                              setArtifactConditions(artifactConditions.filter((x) => x !== artifactId));
+                            } else {
+                              setArtifactConditions([...artifactConditions, artifactId]);
+                            }
+                          }}
+                          className={`rounded-md overflow-hidden transition-all ${
+                            isSelected
+                              ? 'ring-4 ring-blue-500 ring-offset-2'
+                              : isDisabled
+                              ? 'opacity-20 cursor-not-allowed'
+                              : 'opacity-60 hover:opacity-90'
+                          }`}
+                        >
+                          <Image
+                            src={`/artifacts/${ARTIFACT_IMAGES[artifactId as ArtifactType]}`}
+                            alt={getArtifactName(artifactId)}
+                            width={80}
+                            height={61}
+                          />
+                        </button>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Sort by */}
           <div>

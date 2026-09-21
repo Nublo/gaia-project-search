@@ -20,6 +20,7 @@ export async function storeGame(parsedGame: ParsedGameData) {
         winnerName: parsedGame.winnerName,
         minPlayerElo: parsedGame.minPlayerElo,
         finalScorings: parsedGame.finalScorings,
+        artifacts: parsedGame.artifacts,
         isComplete: parsedGame.isComplete,
         isAuction: parsedGame.isAuction,
         isLostFleet: parsedGame.isLostFleet,

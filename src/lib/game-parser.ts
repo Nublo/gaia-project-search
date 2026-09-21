@@ -76,6 +76,7 @@ export interface ParsedGameData {
   winnerName: string; // Name of the winning player
   minPlayerElo: number | null; // Minimum ELO among all players (normalized)
   finalScorings: number[]; // IDs of the 2 active final scoring missions (1–6)
+  artifacts: number[]; // Lost Fleet only: IDs of the Artifact tokens present in the game (1–13, up to 4)
   isComplete: boolean; // True if all 6 rounds were played (notifyRoundEnd roundNum===6 found)
   isAuction: boolean; // True if faction auction was used (any player started with ≠ 10 VP)
   isLostFleet: boolean; // True if the "Lost Fleet" expansion was enabled (table option 107)
@@ -126,6 +127,7 @@ export class GameLogParser {
     let pendingQicActionPlayerId: number | null = null;
     let pendingTechGainPlayerId: number | null = null;
     let foundLogFinalScores = false;
+    let lostFleetArtifacts: number[] | null = null;
 
     // Parse each log packet
     for (const packet of logs) {
@@ -264,6 +266,20 @@ export class GameLogParser {
           const actionId = parseInt(event.args?.actionId);
           if (actionId === 6 || actionId === 7 || actionId === 30 || actionId === 31 || actionId === 32) {
             pendingQicActionPlayerId = parseInt(event.args?.playerId);
+          }
+        }
+
+        // Capture the Lost Fleet Artifact tokens present in this game (up to 4, one
+        // per player) from the Twilight spaceship's initial state. The Twilight ship
+        // (board.lostFleet.ships[].type === 18) is the only ship carrying
+        // availArtifacts; its slots only ever go non-zero -> 0 as tokens are claimed,
+        // so the first snapshot already contains the full set — no need to keep
+        // watching for later notifyUpdate events once found.
+        if (eventType === EventType.NOTIFY_UPDATE && lostFleetArtifacts === null) {
+          const ships = event.args?.board?.lostFleet?.ships;
+          const twilight = ships?.find((s: { type: number }) => s.type === 18);
+          if (twilight?.availArtifacts) {
+            lostFleetArtifacts = (twilight.availArtifacts as number[]).filter((id) => id !== 0);
           }
         }
 
@@ -472,6 +488,7 @@ export class GameLogParser {
       winnerName,
       minPlayerElo,
       finalScorings,
+      artifacts: lostFleetArtifacts ?? [],
       isComplete,
       isAuction: computeIsAuction(players),
       isLostFleet: isLostFleetFromOptions || isLostFleetFromShipExploration,

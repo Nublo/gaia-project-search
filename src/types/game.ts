@@ -7,6 +7,7 @@ export interface GameResult {
   winnerName: string;
   minPlayerElo?: number | null;
   finalScorings: number[];
+  artifacts: number[];
   isComplete: boolean;
   isAuction: boolean;
   isLostFleet: boolean;
@@ -58,6 +59,7 @@ export interface SearchRequest {
   structureConditions: StructureCondition[];
   researchConditions: ResearchCondition[];
   finalScorings?: number[];
+  artifacts?: number[];
   advancedTechConditions?: AdvancedTechCondition[];
   standardTechConditions?: StandardTechCondition[];
   playerRaceConditions?: PlayerRaceCondition[];

@@ -134,6 +134,11 @@ describe('serializeSearchRequest', () => {
     const qs = serializeSearchRequest({ ...EMPTY, finalScorings: [1, 3] });
     expect(qs).toBe('scoring=1&scoring=3');
   });
+
+  it('serializes artifacts', () => {
+    const qs = serializeSearchRequest({ ...EMPTY, artifacts: [6, 12] });
+    expect(qs).toBe('artifact=6&artifact=12');
+  });
 });
 
 describe('deserializeSearchRequest', () => {
@@ -224,6 +229,7 @@ describe('roundtrip', () => {
       structureConditions: [{ race: 'Terrans', structure: 'Mine', maxRound: 3 }],
       researchConditions: [{ race: 'Gleens', track: 1, minLevel: 2, maxRound: 1 }],
       finalScorings: [1, 3],
+      artifacts: [6, 12],
       advancedTechConditions: [{ race: 'Terrans', techId: 5 }, { techId: 3 }],
       standardTechConditions: [{ techId: 7 }],
       playerRaceConditions: [{ playerNames: ['Alice'], race: 'Terrans' }],

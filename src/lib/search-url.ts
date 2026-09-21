@@ -32,6 +32,8 @@ export function serializeSearchRequest(req: SearchRequest): string {
 
   (req.finalScorings ?? []).forEach((s) => params.append('scoring', String(s)));
 
+  (req.artifacts ?? []).forEach((a) => params.append('artifact', String(a)));
+
   (req.advancedTechConditions ?? []).forEach((c) => {
     params.append('advtech', `${c.race ?? ''}:${c.techId}`);
   });
@@ -103,6 +105,8 @@ export function deserializeSearchRequest(raw: Record<string, string | string[] |
     }),
 
     finalScorings: get('scoring').map(Number),
+
+    artifacts: get('artifact').map(Number),
 
     advancedTechConditions: get('advtech').map((v) => {
       const idx = v.indexOf(':');

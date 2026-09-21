@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import type { GameResult, PlayerResult, SearchRequest, StructureCondition, ResearchCondition, AdvancedTechCondition, StandardTechCondition } from '@/types/game';
-import { RACE_NAMES, getFinalScoringName, FINAL_SCORING_IMAGES, RESEARCH_TRACK_SHORT_NAMES } from '@/lib/gaia-constants';
+import { RACE_NAMES, getFinalScoringName, FINAL_SCORING_IMAGES, RESEARCH_TRACK_SHORT_NAMES, ArtifactType, getArtifactName, ARTIFACT_IMAGES } from '@/lib/gaia-constants';
 
 const RACE_BADGE_CLASS: Record<string, string> = {
   'Terrans':      'bg-blue-600 text-white',
@@ -127,12 +127,13 @@ interface GameCardProps {
   structureConditions?: StructureCondition[];
   researchConditions?: ResearchCondition[];
   highlightedFinalScorings?: number[];
+  highlightedArtifacts?: number[];
   advancedTechConditions?: AdvancedTechCondition[];
   standardTechConditions?: StandardTechCondition[];
   sortBy?: SearchRequest['sortBy'];
 }
 
-export default function GameCard({ game, structureConditions = [], researchConditions = [], highlightedFinalScorings = [], sortBy }: GameCardProps) {
+export default function GameCard({ game, structureConditions = [], researchConditions = [], highlightedFinalScorings = [], highlightedArtifacts = [], sortBy }: GameCardProps) {
   const sortedPlayers = [...game.players].sort((a, b) =>
     sortBy ? b[sortBy] - a[sortBy] : b.finalScore - a.finalScore
   );
@@ -154,26 +155,52 @@ export default function GameCard({ game, structureConditions = [], researchCondi
             <span>Min ELO: {game.minPlayerElo ?? 'N/A'}</span>
           </div>
         </div>
-        {game.finalScorings?.length > 0 && (
-          <div className="flex gap-4">
-            {game.finalScorings.map((id) => {
-              const isHighlighted = highlightedFinalScorings.includes(id);
-              return (
-                <div
-                  key={id}
-                  className={isHighlighted ? 'rounded ring-4 ring-blue-500 ring-offset-2' : 'rounded'}
-                >
-                  <Image
-                    src={`/final-scorings/${FINAL_SCORING_IMAGES[id]}`}
-                    alt={getFinalScoringName(id)}
-                    title={getFinalScoringName(id)}
-                    width={80}
-                    height={56}
-                    className="rounded"
-                  />
-                </div>
-              );
-            })}
+        {(game.finalScorings?.length > 0 || game.artifacts?.length > 0) && (
+          <div className="flex items-center gap-4">
+            {game.artifacts?.length > 0 && (
+              <div className="flex gap-2">
+                {game.artifacts.map((id) => {
+                  const isHighlighted = highlightedArtifacts.includes(id);
+                  return (
+                    <div
+                      key={id}
+                      className={isHighlighted ? 'rounded ring-4 ring-blue-500 ring-offset-2' : 'rounded'}
+                    >
+                      <Image
+                        src={`/artifacts/${ARTIFACT_IMAGES[id as ArtifactType]}`}
+                        alt={getArtifactName(id)}
+                        title={getArtifactName(id)}
+                        width={56}
+                        height={43}
+                        className="rounded"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {game.finalScorings?.length > 0 && (
+              <div className="flex gap-4">
+                {game.finalScorings.map((id) => {
+                  const isHighlighted = highlightedFinalScorings.includes(id);
+                  return (
+                    <div
+                      key={id}
+                      className={isHighlighted ? 'rounded ring-4 ring-blue-500 ring-offset-2' : 'rounded'}
+                    >
+                      <Image
+                        src={`/final-scorings/${FINAL_SCORING_IMAGES[id]}`}
+                        alt={getFinalScoringName(id)}
+                        title={getFinalScoringName(id)}
+                        width={80}
+                        height={56}
+                        className="rounded"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </div>

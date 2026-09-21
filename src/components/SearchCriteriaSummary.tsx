@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import type { SearchRequest, StructureCondition, ResearchCondition, AdvancedTechCondition, StandardTechCondition } from '@/types/game';
-import { getFinalScoringName, RESEARCH_TRACK_SHORT_NAMES, ADVANCED_TECH_LABELS, ADVANCED_TECH_IMAGES, STANDARD_TECH_LABELS, STANDARD_TECH_IMAGES } from '@/lib/gaia-constants';
+import { getFinalScoringName, getArtifactName, RESEARCH_TRACK_SHORT_NAMES, ADVANCED_TECH_LABELS, ADVANCED_TECH_IMAGES, STANDARD_TECH_LABELS, STANDARD_TECH_IMAGES } from '@/lib/gaia-constants';
 
 const STRUCTURE_LABELS: Record<string, string> = {
   'mine': 'Mine',
@@ -99,7 +99,7 @@ export function SearchCriteriaSummary({ req }: { req: SearchRequest }) {
   const hasOtherFilters =
     req.winnerRace || req.winnerPlayerName || req.minPlayerElo || req.sortBy ||
     req.playerCounts.length > 0 || req.playerNames.length > 0 || (req.finalScorings ?? []).length > 0 ||
-    (req.playerRaceConditions ?? []).length > 0;
+    (req.artifacts ?? []).length > 0 || (req.playerRaceConditions ?? []).length > 0;
 
   if (!hasFractionFilters && !hasOtherFilters) {
     return <p className="text-sm text-gray-500 italic">No filters applied — showing all games</p>;
@@ -132,6 +132,7 @@ export function SearchCriteriaSummary({ req }: { req: SearchRequest }) {
             </span>
           ))}
           {(req.finalScorings ?? []).map((id) => <Chip key={id} label="Final Scoring" value={getFinalScoringName(id)} />)}
+          {(req.artifacts ?? []).map((id) => <Chip key={id} label="Artifact" value={getArtifactName(id)} />)}
           {req.sortBy && <Chip label="Sort by" value={SORT_LABELS[req.sortBy] ?? req.sortBy} />}
         </div>
       )}

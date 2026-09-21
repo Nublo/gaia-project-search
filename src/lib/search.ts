@@ -33,6 +33,7 @@ export async function searchGames(req: SearchRequest): Promise<SearchGamesResult
     structureConditions = [],
     researchConditions = [],
     finalScorings = [],
+    artifacts = [],
     advancedTechConditions = [],
     standardTechConditions = [],
     playerRaceConditions = [],
@@ -69,6 +70,10 @@ export async function searchGames(req: SearchRequest): Promise<SearchGamesResult
 
   for (const scoringId of finalScorings) {
     andConditions.push({ finalScorings: { has: scoringId } });
+  }
+
+  for (const artifactId of artifacts) {
+    andConditions.push({ artifacts: { has: artifactId } });
   }
 
   for (const group of playerNames) {
@@ -298,6 +303,7 @@ export async function searchGames(req: SearchRequest): Promise<SearchGamesResult
     winnerName: true,
     minPlayerElo: true,
     finalScorings: true,
+    artifacts: true,
     isAuction: true,
     isLostFleet: true,
     players: {
@@ -418,6 +424,7 @@ export async function getLeaderboardGames(limit = 3, isLostFleet = false): Promi
     winnerName: true,
     minPlayerElo: true,
     finalScorings: true,
+    artifacts: true,
     isComplete: true,
     isLostFleet: true,
     players: {
@@ -517,6 +524,7 @@ export async function getAnalytics(req: SearchRequest, selectedGroup?: string[])
     structureConditions = [],
     researchConditions = [],
     finalScorings = [],
+    artifacts = [],
     advancedTechConditions = [],
     standardTechConditions = [],
     playerRaceConditions = [],
@@ -559,6 +567,10 @@ export async function getAnalytics(req: SearchRequest, selectedGroup?: string[])
 
   for (const scoringId of finalScorings) {
     andConditions.push({ finalScorings: { has: scoringId } });
+  }
+
+  for (const artifactId of artifacts) {
+    andConditions.push({ artifacts: { has: artifactId } });
   }
 
   for (const group of playerNames) {

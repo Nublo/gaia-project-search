@@ -968,6 +968,77 @@ describe('GameLogParser — QIC and tech points', () => {
 })
 
 // ============================================================================
+// TESTS: LOST FLEET ARTIFACTS
+// ============================================================================
+
+describe('GameLogParser — Lost Fleet artifacts', () => {
+  function notifyUpdateEvent(ships: { type: number; availArtifacts?: number[]; availTech?: number }[]) {
+    return { type: 'notifyUpdate', args: { board: { lostFleet: { ships } } } }
+  }
+
+  it('extracts non-zero artifact IDs from the Twilight ship (type 18), dropping empty slots', () => {
+    const logResponse: GetGameLogResponse = {
+      status: 1,
+      data: {
+        logs: [
+          {
+            channel: '', table_id: '820488760', packet_id: '1', packet_type: 'history', move_id: '1', time: '1700000000',
+            data: [
+              chooseRaceEvent(1, 'Alice', 1),
+              notifyUpdateEvent([{ type: 18, availArtifacts: [3, 6, 7, 13] }, { type: 16, availTech: 40 }]),
+            ],
+          },
+        ],
+      },
+    }
+
+    const tableInfo = makeTableInfo({ players: [{ player_id: '1', gamerank: '1', rank_after_game: '2600' }] })
+    const result = GameLogParser.parseGameLog(makeGameTable(), logResponse, tableInfo)
+    expect(result.artifacts).toEqual([3, 6, 7, 13])
+  })
+
+  it('only uses the first Twilight snapshot, ignoring later claims that zero out slots', () => {
+    const logResponse: GetGameLogResponse = {
+      status: 1,
+      data: {
+        logs: [
+          {
+            channel: '', table_id: '820488760', packet_id: '1', packet_type: 'history', move_id: '1', time: '1700000000',
+            data: [chooseRaceEvent(1, 'Alice', 1), notifyUpdateEvent([{ type: 18, availArtifacts: [6, 12, 0, 0] }])],
+          },
+          {
+            channel: '', table_id: '820488760', packet_id: '2', packet_type: 'history', move_id: '2', time: '1700000001',
+            data: [notifyUpdateEvent([{ type: 18, availArtifacts: [6, 0, 0, 0] }])],
+          },
+        ],
+      },
+    }
+
+    const tableInfo = makeTableInfo({ players: [{ player_id: '1', gamerank: '1', rank_after_game: '2600' }] })
+    const result = GameLogParser.parseGameLog(makeGameTable(), logResponse, tableInfo)
+    expect(result.artifacts).toEqual([6, 12])
+  })
+
+  it('defaults to an empty array when there is no Twilight ship in the log (base game / solo)', () => {
+    const logResponse: GetGameLogResponse = {
+      status: 1,
+      data: {
+        logs: [
+          {
+            channel: '', table_id: '820488760', packet_id: '1', packet_type: 'history', move_id: '1', time: '1700000000',
+            data: [chooseRaceEvent(1, 'Alice', 1)],
+          },
+        ],
+      },
+    }
+
+    const tableInfo = makeTableInfo({ players: [{ player_id: '1', gamerank: '1', rank_after_game: '2600' }] })
+    const result = GameLogParser.parseGameLog(makeGameTable(), logResponse, tableInfo)
+    expect(result.artifacts).toEqual([])
+  })
+})
+
+// ============================================================================
 // TESTS: FACTION COST
 // ============================================================================
 
@@ -1214,6 +1285,10 @@ describe('GameLogParser.parseGameLog — real fixture (Lost Fleet game)', () => 
   it('marks the game complete and identifies the correct winner via the fallback scores', () => {
     expect(result.isComplete).toBe(true)
     expect(result.winnerName).toBe('Nigator')
+  })
+
+  it('extracts the Lost Fleet artifacts present in the game (unpadded, zero slots dropped)', () => {
+    expect(result.artifacts).toEqual([6, 12])
   })
 })
 
