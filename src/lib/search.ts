@@ -447,7 +447,7 @@ export async function getLeaderboardGames(limit = 3, isLostFleet = false): Promi
   const categories: { key: LeaderboardCategory; label: string }[] = [
     { key: 'qicPoints', label: 'QIC Points' },
     { key: 'techPoints', label: 'Tech Points' },
-    { key: 'totalScoredPoints', label: 'Total Points' },
+    { key: 'totalScoredPoints', label: 'Scored Points' },
     { key: 'factionCost', label: 'Faction Cost' },
   ];
 
