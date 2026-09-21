@@ -42,7 +42,7 @@ export default async function LeaderboardPage({
               <div className="grid grid-cols-1 gap-4">
                 {games.map((game, i) => (
                   <div key={game.id} className="flex gap-3 items-start">
-                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-bold text-sm flex items-center justify-center mt-6">
+                    <div className="hidden sm:flex flex-shrink-0 w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-bold text-sm items-center justify-center mt-6">
                       {i + 1}
                     </div>
                     <div className="flex-1">

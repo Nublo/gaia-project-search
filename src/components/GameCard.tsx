@@ -150,10 +150,6 @@ export default function GameCard({ game, structureConditions = [], researchCondi
           >
             Watch BGA replay
           </a>
-          <div className="flex gap-4 text-sm text-gray-500 mt-1">
-            <span>{game.playerCount} players</span>
-            <span>Min ELO: {game.minPlayerElo ?? 'N/A'}</span>
-          </div>
         </div>
         {(game.finalScorings?.length > 0 || game.artifacts?.length > 0) && (
           <div className="flex items-center gap-4">
