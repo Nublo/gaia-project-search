@@ -33,7 +33,6 @@ interface FractionConfig {
 interface SearchFormProps {
   onSearch: (req: SearchRequest) => void;
   isLoading?: boolean;
-  lostFleetGameCount: number;
 }
 
 const races: { name: string; file: string }[] = [
@@ -150,7 +149,7 @@ function getRaceFile(name: string): string {
   return allRaces.find((r) => r.name === name)?.file ?? '';
 }
 
-export default function SearchForm({ onSearch, isLoading = false, lostFleetGameCount }: SearchFormProps) {
+export default function SearchForm({ onSearch, isLoading = false }: SearchFormProps) {
   const [criteria, setCriteria] = useState<FormState>({});
   const [selectedLevel, setSelectedLevel] = useState<string>('');
   const [sortBy, setSortBy] = useState<string>('');
@@ -395,13 +394,6 @@ export default function SearchForm({ onSearch, isLoading = false, lostFleetGameC
           </a>
         </div>
       </div>
-
-      {lostFleetMode && (
-        <p className="mb-4 text-sm text-gray-600 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
-          Lost Fleet game support is currently in development. There are currently{' '}
-          <strong>{lostFleetGameCount}</strong> finished Lost Fleet games in the database.
-        </p>
-      )}
 
       {/* Section 1: Single Selection Filters */}
       <div className="mb-6">

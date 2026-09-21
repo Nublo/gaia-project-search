@@ -29,9 +29,9 @@ export default async function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 py-3">
       <div className="container mx-auto px-4">
-        <SearchSection lostFleetGameCount={lostFleetGameCount} />
+        <SearchSection />
         <p className="text-center text-gray-500 text-sm mt-4">
-          Database contains {gameCount.toLocaleString()} finished games
+          Database contains {gameCount.toLocaleString()} finished games ({lostFleetGameCount.toLocaleString()} Lost Fleet)
         </p>
       </div>
     </div>
