@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import type { GameResult, PlayerResult, SearchRequest, StructureCondition, ResearchCondition, AdvancedTechCondition, StandardTechCondition } from '@/types/game';
-import { RACE_NAMES, getFinalScoringName, FINAL_SCORING_IMAGES, RESEARCH_TRACK_SHORT_NAMES, ArtifactType, getArtifactName, ARTIFACT_IMAGES } from '@/lib/gaia-constants';
+import { RACE_NAMES, getFinalScoringName, getFinalScoringDisplayId, FINAL_SCORING_IMAGES, RESEARCH_TRACK_SHORT_NAMES, ArtifactType, getArtifactName, ARTIFACT_IMAGES } from '@/lib/gaia-constants';
 
 const RACE_BADGE_CLASS: Record<string, string> = {
   'Terrans':      'bg-blue-600 text-white',
@@ -179,15 +179,16 @@ export default function GameCard({ game, structureConditions = [], researchCondi
               <div className="flex gap-4">
                 {game.finalScorings.map((id) => {
                   const isHighlighted = highlightedFinalScorings.includes(id);
+                  const displayId = getFinalScoringDisplayId(id, game.isLostFleet);
                   return (
                     <div
                       key={id}
                       className={isHighlighted ? 'rounded ring-4 ring-blue-500 ring-offset-2' : 'rounded'}
                     >
                       <Image
-                        src={`/final-scorings/${FINAL_SCORING_IMAGES[id]}`}
-                        alt={getFinalScoringName(id)}
-                        title={getFinalScoringName(id)}
+                        src={`/final-scorings/${FINAL_SCORING_IMAGES[displayId]}`}
+                        alt={getFinalScoringName(displayId)}
+                        title={getFinalScoringName(displayId)}
                         width={80}
                         height={56}
                         className="rounded"

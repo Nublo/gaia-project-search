@@ -214,6 +214,14 @@ export function getFinalScoringName(id: number): string {
   return FINAL_SCORING_NAMES[id as FinalScoringType] || `Unknown Scoring (${id})`;
 }
 
+// The parser can only ever store PLANET_TYPES (3) — BGA sends an identical
+// notifyScore desc for both physical tiles, so the log alone can't tell them
+// apart (see FINAL_SCORING_DESC_TO_ID above). Displaying a stored `3` for a
+// Lost Fleet game should still show that game's actual tile art (10).
+export function getFinalScoringDisplayId(id: number, isLostFleet: boolean): number {
+  return isLostFleet && id === FinalScoringType.PLANET_TYPES ? FinalScoringType.PLANET_TYPES_LOST_FLEET : id;
+}
+
 // ============================================================================
 // LOST FLEET ARTIFACTS
 // ============================================================================

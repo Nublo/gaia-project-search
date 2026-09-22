@@ -12,6 +12,7 @@ import {
   BuildingType,
   ResearchTrack,
   FinalScoringType,
+  getFinalScoringDisplayId,
 } from '../gaia-constants'
 
 describe('getRaceName', () => {
@@ -77,6 +78,21 @@ describe('FINAL_SCORING_DESC_TO_ID', () => {
 
   it('returns undefined for unknown description', () => {
     expect(FINAL_SCORING_DESC_TO_ID['Unknown description']).toBeUndefined()
+  })
+})
+
+describe('getFinalScoringDisplayId', () => {
+  it('swaps stored PLANET_TYPES (3) for the Lost Fleet art variant (10) in Lost Fleet games', () => {
+    expect(getFinalScoringDisplayId(FinalScoringType.PLANET_TYPES, true)).toBe(FinalScoringType.PLANET_TYPES_LOST_FLEET)
+  })
+
+  it('keeps PLANET_TYPES (3) as-is for base games', () => {
+    expect(getFinalScoringDisplayId(FinalScoringType.PLANET_TYPES, false)).toBe(FinalScoringType.PLANET_TYPES)
+  })
+
+  it('leaves every other scoring ID unchanged regardless of Lost Fleet flag', () => {
+    expect(getFinalScoringDisplayId(FinalScoringType.STRUCTURES, true)).toBe(FinalScoringType.STRUCTURES)
+    expect(getFinalScoringDisplayId(FinalScoringType.ASTEROIDS, true)).toBe(FinalScoringType.ASTEROIDS)
   })
 })
 

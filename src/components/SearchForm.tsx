@@ -74,9 +74,10 @@ const fractionRowsBase = [races];               // 14 base factions: single row 
 const fractionRowsLostFleet = chunk(allRaces, 9); // 18 factions incl. Lost Fleet: 2 rows of 9
 
 const finalScoringRowsBase = [[1, 2, 3, 4, 5, 6]]; // base game: single row of 6
-// Lost Fleet: single row of 9 — excludes 3 (Planet types) since 10 is the same
-// condition with different Lost Fleet art (PLANET_TYPES_LOST_FLEET).
-const finalScoringRowsLostFleet = [[1, 2, 4, 5, 6, 7, 8, 9, 10]];
+// Lost Fleet: same relative order as the base game — 10 (Lost Fleet art for
+// "Planet types") takes the place of 3 right after Structures — with the
+// Lost-Fleet-only missions (7, 8, 9) appended at the end.
+const finalScoringRowsLostFleet = [[1, 2, 10, 4, 5, 6, 7, 8, 9]];
 
 // Confirmed via a real Lost Fleet log: BGA's notifyScore desc for tile 10 is
 // identical to tile 3 ("Most planet types"), so the parser only ever writes 3
