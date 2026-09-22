@@ -12,7 +12,7 @@ import SearchSection from './SearchSection';
 export const revalidate = 86400;
 
 const getGameCount = unstable_cache(
-  () => prisma.game.count({ where: { isComplete: true } }),
+  () => prisma.game.count({ where: { isComplete: true, isLostFleet: false } }),
   ['finished-game-count'],
   { revalidate: CACHE_REVALIDATE_SECONDS, tags: [CACHE_TAG_GAME_COUNT] }
 );
@@ -31,7 +31,7 @@ export default async function Home() {
       <div className="container mx-auto px-4">
         <SearchSection />
         <p className="text-center text-gray-500 text-sm mt-4">
-          Database contains {gameCount.toLocaleString()} finished games ({lostFleetGameCount.toLocaleString()} Lost Fleet)
+          {gameCount.toLocaleString()} base games ({lostFleetGameCount.toLocaleString()} Lost Fleet)
         </p>
       </div>
     </div>
