@@ -1,6 +1,6 @@
 import Image from 'next/image';
-import type { SearchRequest, StructureCondition, ResearchCondition, AdvancedTechCondition, StandardTechCondition } from '@/types/game';
-import { getFinalScoringName, getArtifactName, RESEARCH_TRACK_SHORT_NAMES, ADVANCED_TECH_LABELS, ADVANCED_TECH_IMAGES, STANDARD_TECH_LABELS, STANDARD_TECH_IMAGES } from '@/lib/gaia-constants';
+import type { SearchRequest, StructureCondition, ResearchCondition, AdvancedTechCondition, StandardTechCondition, ArtifactCondition } from '@/types/game';
+import { getFinalScoringName, getArtifactName, RESEARCH_TRACK_SHORT_NAMES, ADVANCED_TECH_LABELS, ADVANCED_TECH_IMAGES, STANDARD_TECH_LABELS, STANDARD_TECH_IMAGES, ArtifactType, ARTIFACT_IMAGES } from '@/lib/gaia-constants';
 
 const STRUCTURE_LABELS: Record<string, string> = {
   'mine': 'Mine',
@@ -71,28 +71,33 @@ function FractionFilterChip({ children }: { children: React.ReactNode }) {
 }
 
 export function SearchCriteriaSummary({ req }: { req: SearchRequest }) {
-  // Group structure + research + advanced tech conditions by race
-  const fractionMap = new Map<string, { structures: StructureCondition[]; research: ResearchCondition[]; advancedTechs: AdvancedTechCondition[]; standardTechs: StandardTechCondition[] }>();
+  // Group structure + research + advanced tech + artifact conditions by race
+  const fractionMap = new Map<string, { structures: StructureCondition[]; research: ResearchCondition[]; advancedTechs: AdvancedTechCondition[]; standardTechs: StandardTechCondition[]; artifacts: ArtifactCondition[] }>();
 
   for (const cond of req.structureConditions ?? []) {
     const key = cond.race ?? '';
-    if (!fractionMap.has(key)) fractionMap.set(key, { structures: [], research: [], advancedTechs: [], standardTechs: [] });
+    if (!fractionMap.has(key)) fractionMap.set(key, { structures: [], research: [], advancedTechs: [], standardTechs: [], artifacts: [] });
     fractionMap.get(key)!.structures.push(cond);
   }
   for (const cond of req.researchConditions ?? []) {
     const key = cond.race ?? '';
-    if (!fractionMap.has(key)) fractionMap.set(key, { structures: [], research: [], advancedTechs: [], standardTechs: [] });
+    if (!fractionMap.has(key)) fractionMap.set(key, { structures: [], research: [], advancedTechs: [], standardTechs: [], artifacts: [] });
     fractionMap.get(key)!.research.push(cond);
   }
   for (const cond of req.advancedTechConditions ?? []) {
     const key = cond.race ?? '';
-    if (!fractionMap.has(key)) fractionMap.set(key, { structures: [], research: [], advancedTechs: [], standardTechs: [] });
+    if (!fractionMap.has(key)) fractionMap.set(key, { structures: [], research: [], advancedTechs: [], standardTechs: [], artifacts: [] });
     fractionMap.get(key)!.advancedTechs.push(cond);
   }
   for (const cond of req.standardTechConditions ?? []) {
     const key = cond.race ?? '';
-    if (!fractionMap.has(key)) fractionMap.set(key, { structures: [], research: [], advancedTechs: [], standardTechs: [] });
+    if (!fractionMap.has(key)) fractionMap.set(key, { structures: [], research: [], advancedTechs: [], standardTechs: [], artifacts: [] });
     fractionMap.get(key)!.standardTechs.push(cond);
+  }
+  for (const cond of req.artifactConditions ?? []) {
+    const key = cond.race ?? '';
+    if (!fractionMap.has(key)) fractionMap.set(key, { structures: [], research: [], advancedTechs: [], standardTechs: [], artifacts: [] });
+    fractionMap.get(key)!.artifacts.push(cond);
   }
 
   const hasFractionFilters = fractionMap.size > 0 || (req.standardTechConditions ?? []).length > 0;
@@ -138,7 +143,7 @@ export function SearchCriteriaSummary({ req }: { req: SearchRequest }) {
       )}
 
       {/* Fraction-grouped filters */}
-      {Array.from(fractionMap.entries()).map(([race, { structures, research, advancedTechs, standardTechs }]) => (
+      {Array.from(fractionMap.entries()).map(([race, { structures, research, advancedTechs, standardTechs, artifacts }]) => (
         <div key={race || '__any__'} className="flex items-center gap-2 flex-wrap">
           {race && RACE_IMAGE_FILES[race] && (
             <Image
@@ -181,6 +186,18 @@ export function SearchCriteriaSummary({ req }: { req: SearchRequest }) {
                 className="rounded"
               />
               {STANDARD_TECH_LABELS[cond.techId]}
+            </span>
+          ))}
+          {artifacts.map((cond, i) => (
+            <span key={`a-${i}`} className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 border border-blue-300 rounded-full text-sm text-blue-800">
+              <Image
+                src={`/artifacts/${ARTIFACT_IMAGES[cond.artifactId as ArtifactType]}`}
+                alt={getArtifactName(cond.artifactId)}
+                width={24}
+                height={18}
+                className="rounded"
+              />
+              {getArtifactName(cond.artifactId)}
             </span>
           ))}
         </div>
