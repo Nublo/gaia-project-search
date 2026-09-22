@@ -1,5 +1,5 @@
 import Image from 'next/image';
-import type { GameResult, PlayerResult, SearchRequest, StructureCondition, ResearchCondition, AdvancedTechCondition, StandardTechCondition } from '@/types/game';
+import type { GameResult, PlayerResult, SearchRequest, StructureCondition, ResearchCondition, AdvancedTechCondition, StandardTechCondition, ArtifactCondition } from '@/types/game';
 import { RACE_NAMES, getFinalScoringName, getFinalScoringDisplayId, FINAL_SCORING_IMAGES, RESEARCH_TRACK_SHORT_NAMES, ArtifactType, getArtifactName, ARTIFACT_IMAGES } from '@/lib/gaia-constants';
 
 const RACE_BADGE_CLASS: Record<string, string> = {
@@ -88,6 +88,25 @@ function getMatchedConditionLabels(
   return labels;
 }
 
+// Returns artifact IDs this player claimed that also satisfy an active artifact
+// condition (race-scoped or not), for ring-highlighting in the artifact row.
+function getMatchedArtifactIds(
+  player: PlayerResult,
+  conditions: ArtifactCondition[]
+): Set<number> {
+  const matched = new Set<number>();
+  for (const cond of conditions) {
+    if (cond.race) {
+      const raceId = RACE_NAME_TO_ID[cond.race];
+      if (player.raceId !== raceId) continue;
+    }
+    if (player.artifactsData.includes(cond.artifactId)) {
+      matched.add(cond.artifactId);
+    }
+  }
+  return matched;
+}
+
 function getMatchedResearchLabels(
   player: PlayerResult,
   conditions: ResearchCondition[]
@@ -130,10 +149,11 @@ interface GameCardProps {
   highlightedArtifacts?: number[];
   advancedTechConditions?: AdvancedTechCondition[];
   standardTechConditions?: StandardTechCondition[];
+  artifactConditions?: ArtifactCondition[];
   sortBy?: SearchRequest['sortBy'];
 }
 
-export default function GameCard({ game, structureConditions = [], researchConditions = [], highlightedFinalScorings = [], highlightedArtifacts = [], sortBy }: GameCardProps) {
+export default function GameCard({ game, structureConditions = [], researchConditions = [], highlightedFinalScorings = [], highlightedArtifacts = [], artifactConditions = [], sortBy }: GameCardProps) {
   const sortedPlayers = [...game.players].sort((a, b) =>
     sortBy ? b[sortBy] - a[sortBy] : b.finalScore - a.finalScore
   );
@@ -206,6 +226,7 @@ export default function GameCard({ game, structureConditions = [], researchCondi
         {sortedPlayers.map((player) => {
           const structureLabels = getMatchedConditionLabels(player, structureConditions);
           const researchLabels = getMatchedResearchLabels(player, researchConditions);
+          const matchedArtifactIds = getMatchedArtifactIds(player, artifactConditions);
           return (
             <div
               key={player.id}
@@ -238,6 +259,21 @@ export default function GameCard({ game, structureConditions = [], researchCondi
                   >
                     {label}
                   </span>
+                ))}
+                {player.artifactsData?.map((id) => (
+                  <div
+                    key={id}
+                    className={matchedArtifactIds.has(id) ? 'rounded ring-2 ring-blue-500 ring-offset-1' : 'rounded'}
+                  >
+                    <Image
+                      src={`/artifacts/${ARTIFACT_IMAGES[id as ArtifactType]}`}
+                      alt={getArtifactName(id)}
+                      title={getArtifactName(id)}
+                      width={28}
+                      height={21}
+                      className="rounded"
+                    />
+                  </div>
                 ))}
               </div>
               <div className="flex items-center gap-3 text-sm text-gray-600">

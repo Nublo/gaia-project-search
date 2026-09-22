@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import type { SearchRequest, StructureCondition, ResearchCondition, AdvancedTechCondition, StandardTechCondition } from '@/types/game';
+import type { SearchRequest, StructureCondition, ResearchCondition, AdvancedTechCondition, StandardTechCondition, ArtifactCondition } from '@/types/game';
 import { FINAL_SCORING_IMAGES, getFinalScoringName, RESEARCH_TRACK_SHORT_NAMES, ADVANCED_TECH_LABELS, ADVANCED_TECH_IMAGES, STANDARD_TECH_LABELS, STANDARD_TECH_IMAGES, STANDARD_TECH_LOST_FLEET_ART_VARIANT_IMAGE, ArtifactType, ARTIFACT_IMAGES, getArtifactName } from '@/lib/gaia-constants';
 import { serializeSearchRequest } from '@/lib/search-url';
 
@@ -26,6 +26,7 @@ interface FractionConfig {
   tempResearchMaxRound?: number;
   advancedTechs: number[];
   standardTechs: number[];
+  artifacts: number[];
   playedBy?: string;
   tempPlayedBy: string;
 }
@@ -159,10 +160,11 @@ export default function SearchForm({ onSearch, isLoading = false }: SearchFormPr
   const [fractionConfigs, setFractionConfigs] = useState<FractionConfig[]>([]);
   const [advancedTechDialogRace, setAdvancedTechDialogRace] = useState<string | null>(null);
   const [standardTechDialogRace, setStandardTechDialogRace] = useState<string | null>(null);
+  const [artifactDialogRace, setArtifactDialogRace] = useState<string | null>(null);
   const [playerNameConditions, setPlayerNameConditions] = useState<string[][]>([]);
   const [playerCountConditions, setPlayerCountConditions] = useState<number[]>([]);
   const [finalScoringConditions, setFinalScoringConditions] = useState<number[]>([]);
-  const [artifactConditions, setArtifactConditions] = useState<number[]>([]);
+  const [gameArtifacts, setGameArtifacts] = useState<number[]>([]);
 
   // Player name autocomplete
   const [allPlayerNames, setAllPlayerNames] = useState<string[]>([]);
@@ -224,6 +226,9 @@ export default function SearchForm({ onSearch, isLoading = false }: SearchFormPr
     const standardTechConditions: StandardTechCondition[] = fractionConfigs.flatMap((fc) =>
       fc.standardTechs.map((techId) => ({ race: fc.race, techId }))
     );
+    const artifactConditions: ArtifactCondition[] = fractionConfigs.flatMap((fc) =>
+      fc.artifacts.map((artifactId) => ({ race: fc.race, artifactId }))
+    );
     const playerRaceConditions = fractionConfigs
       .filter((fc) => fc.playedBy)
       .map((fc) => ({ playerNames: [fc.playedBy!], race: fc.race }));
@@ -237,9 +242,10 @@ export default function SearchForm({ onSearch, isLoading = false }: SearchFormPr
       structureConditions,
       researchConditions,
       finalScorings: finalScoringConditions,
-      artifacts: artifactConditions,
+      artifacts: gameArtifacts,
       advancedTechConditions,
       standardTechConditions,
+      artifactConditions,
       playerRaceConditions,
       sortBy: (sortBy as SearchRequest['sortBy']) || undefined,
       isLostFleet: lostFleetMode,
@@ -258,14 +264,15 @@ export default function SearchForm({ onSearch, isLoading = false }: SearchFormPr
     setFractionConfigs([]);
     setAdvancedTechDialogRace(null);
     setStandardTechDialogRace(null);
+    setArtifactDialogRace(null);
     setPlayerNameConditions([]);
     setPlayerCountConditions([]);
     setFinalScoringConditions([]);
-    setArtifactConditions([]);
+    setGameArtifacts([]);
   };
 
   function defaultFractionConfig(name: string): FractionConfig {
-    return { race: name, conditions: [], researchConditions: [], advancedTechs: [], standardTechs: [], tempStructure: 'knowledge-academy', tempMaxRound: 1, tempResearchTrack: 1, tempResearchMinLevel: 4, tempResearchMaxRound: 6, tempPlayedBy: '' };
+    return { race: name, conditions: [], researchConditions: [], advancedTechs: [], standardTechs: [], artifacts: [], tempStructure: 'knowledge-academy', tempMaxRound: 1, tempResearchTrack: 1, tempResearchMinLevel: 4, tempResearchMaxRound: 6, tempPlayedBy: '' };
   }
 
   function toggleFraction(name: string) {
@@ -363,6 +370,23 @@ export default function SearchForm({ onSearch, isLoading = false }: SearchFormPr
   function removeStandardTechFromFraction(race: string, techId: number) {
     setFractionConfigs(fractionConfigs.map((fc) =>
       fc.race !== race ? fc : { ...fc, standardTechs: fc.standardTechs.filter((id) => id !== techId) }
+    ));
+  }
+
+  function toggleArtifact(race: string, artifactId: number) {
+    setFractionConfigs(fractionConfigs.map((fc) => {
+      if (fc.race !== race) return fc;
+      const has = fc.artifacts.includes(artifactId);
+      const next = has
+        ? fc.artifacts.filter((id) => id !== artifactId)
+        : [...fc.artifacts, artifactId].sort((a, b) => a - b);
+      return { ...fc, artifacts: next };
+    }));
+  }
+
+  function removeArtifactFromFraction(race: string, artifactId: number) {
+    setFractionConfigs(fractionConfigs.map((fc) =>
+      fc.race !== race ? fc : { ...fc, artifacts: fc.artifacts.filter((id) => id !== artifactId) }
     ));
   }
 
@@ -498,8 +522,8 @@ export default function SearchForm({ onSearch, isLoading = false }: SearchFormPr
                 {artifactRows.map((row, rowIdx) => (
                   <div key={rowIdx} className="flex justify-between">
                     {row.map((artifactId) => {
-                      const isSelected = artifactConditions.includes(artifactId);
-                      const isDisabled = !isSelected && artifactConditions.length >= MAX_ARTIFACT_CONDITIONS;
+                      const isSelected = gameArtifacts.includes(artifactId);
+                      const isDisabled = !isSelected && gameArtifacts.length >= MAX_ARTIFACT_CONDITIONS;
                       return (
                         <button
                           key={artifactId}
@@ -508,9 +532,9 @@ export default function SearchForm({ onSearch, isLoading = false }: SearchFormPr
                           disabled={isDisabled}
                           onClick={() => {
                             if (isSelected) {
-                              setArtifactConditions(artifactConditions.filter((x) => x !== artifactId));
+                              setGameArtifacts(gameArtifacts.filter((x) => x !== artifactId));
                             } else {
-                              setArtifactConditions([...artifactConditions, artifactId]);
+                              setGameArtifacts([...gameArtifacts, artifactId]);
                             }
                           }}
                           className={`rounded-md overflow-hidden transition-all ${
@@ -803,10 +827,19 @@ export default function SearchForm({ onSearch, isLoading = false }: SearchFormPr
                 >
                   Add advanced tech
                 </button>
+                {lostFleetMode && (
+                  <button
+                    type="button"
+                    onClick={() => setArtifactDialogRace(fc.race)}
+                    className="px-3 h-9 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm whitespace-nowrap"
+                  >
+                    Add artifact
+                  </button>
+                )}
               </div>
 
               {/* Condition chips */}
-              {(fc.conditions.length > 0 || fc.researchConditions.length > 0 || fc.advancedTechs.length > 0 || fc.standardTechs.length > 0) && (
+              {(fc.conditions.length > 0 || fc.researchConditions.length > 0 || fc.advancedTechs.length > 0 || fc.standardTechs.length > 0 || fc.artifacts.length > 0) && (
                 <div className="mt-2 flex flex-wrap gap-1">
                   {fc.conditions.map((c, i) => (
                     <div
@@ -874,6 +907,22 @@ export default function SearchForm({ onSearch, isLoading = false }: SearchFormPr
                         alt={STANDARD_TECH_LABELS[techId]}
                         width={32}
                         height={32}
+                      />
+                    </button>
+                  ))}
+                  {fc.artifacts.map((artifactId) => (
+                    <button
+                      key={`a-${artifactId}`}
+                      type="button"
+                      title={`Remove ${getArtifactName(artifactId)}`}
+                      onClick={() => removeArtifactFromFraction(fc.race, artifactId)}
+                      className="rounded-md overflow-hidden border-2 border-blue-400 hover:border-red-400 hover:opacity-70 transition-all"
+                    >
+                      <Image
+                        src={`/artifacts/${ARTIFACT_IMAGES[artifactId as ArtifactType]}`}
+                        alt={getArtifactName(artifactId)}
+                        width={32}
+                        height={25}
                       />
                     </button>
                   ))}
@@ -1166,6 +1215,59 @@ export default function SearchForm({ onSearch, isLoading = false }: SearchFormPr
                         alt={label}
                         width={120}
                         height={72}
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Artifact Dialog */}
+      {artifactDialogRace && (() => {
+        const fc = fractionConfigs.find((f) => f.race === artifactDialogRace);
+        if (!fc) return null;
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+            onClick={() => setArtifactDialogRace(null)}
+          >
+            <div
+              className="bg-white rounded-xl shadow-2xl p-6 max-w-lg w-full mx-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-base font-semibold text-gray-900">Select Artifacts — {artifactDialogRace}</h3>
+                <button
+                  type="button"
+                  onClick={() => setArtifactDialogRace(null)}
+                  className="text-gray-400 hover:text-gray-600 text-xl leading-none"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="grid grid-cols-5 gap-4">
+                {ARTIFACT_IDS.map((artifactId) => {
+                  const selected = fc.artifacts.includes(artifactId);
+                  return (
+                    <button
+                      key={artifactId}
+                      type="button"
+                      title={getArtifactName(artifactId)}
+                      onClick={() => toggleArtifact(artifactDialogRace, artifactId)}
+                      className={`rounded-md overflow-hidden transition-all ${
+                        selected
+                          ? 'ring-4 ring-blue-500 ring-offset-2'
+                          : 'opacity-70 hover:opacity-100'
+                      }`}
+                    >
+                      <Image
+                        src={`/artifacts/${ARTIFACT_IMAGES[artifactId as ArtifactType]}`}
+                        alt={getArtifactName(artifactId)}
+                        width={72}
+                        height={55}
                       />
                     </button>
                   );

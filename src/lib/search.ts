@@ -36,6 +36,7 @@ export async function searchGames(req: SearchRequest): Promise<SearchGamesResult
     artifacts = [],
     advancedTechConditions = [],
     standardTechConditions = [],
+    artifactConditions = [],
     playerRaceConditions = [],
   } = req;
 
@@ -296,6 +297,44 @@ export async function searchGames(req: SearchRequest): Promise<SearchGamesResult
     }
   }
 
+  if (artifactConditions.length > 0) {
+    const existsFragments: Prisma.Sql[] = [];
+
+    for (const cond of artifactConditions) {
+      const artifactId = cond.artifactId;
+      const raceId = cond.race ? RACE_NAME_TO_ID[cond.race] : undefined;
+
+      if (raceId !== undefined) {
+        existsFragments.push(Prisma.sql`
+          EXISTS (
+            SELECT 1 FROM players p WHERE p.table_id = g.table_id
+            AND p.race_id = ${raceId}
+            AND p.artifacts_data @> ARRAY[${artifactId}::int]
+          )
+        `);
+      } else {
+        existsFragments.push(Prisma.sql`
+          EXISTS (
+            SELECT 1 FROM players p WHERE p.table_id = g.table_id
+            AND p.artifacts_data @> ARRAY[${artifactId}::int]
+          )
+        `);
+      }
+    }
+
+    if (existsFragments.length > 0) {
+      const whereClause = Prisma.join(existsFragments, ' AND ');
+      const matchingGames = await prisma.$queryRaw<{ table_id: number }[]>`
+        SELECT DISTINCT g.table_id FROM games g WHERE ${whereClause}
+      `;
+      const matchingTableIds = matchingGames.map((r) => r.table_id);
+
+      if (matchingTableIds.length === 0) return { games: [], queryMs: Math.round(performance.now() - dbStart) };
+
+      andConditions.push({ tableId: { in: matchingTableIds } });
+    }
+  }
+
   const GAME_SELECT = {
     id: true,
     tableId: true,
@@ -319,6 +358,7 @@ export async function searchGames(req: SearchRequest): Promise<SearchGamesResult
         researchData: true,
         advancedTechsData: true,
         standardTechsData: true,
+        artifactsData: true,
         qicPoints: true,
         techPoints: true,
         totalScoredPoints: true,
@@ -348,6 +388,7 @@ export async function searchGames(req: SearchRequest): Promise<SearchGamesResult
       ...(req.researchConditions ?? []).map((c) => c.race),
       ...(req.advancedTechConditions ?? []).map((c) => c.race),
       ...(req.standardTechConditions ?? []).map((c) => c.race),
+      ...(req.artifactConditions ?? []).map((c) => c.race),
     ].filter((r): r is string => !!r);
     const filteredRaceIds = [...new Set(allConditionRaces)]
       .map((name) => RACE_NAME_TO_ID[name])
@@ -440,6 +481,7 @@ export async function getLeaderboardGames(limit = 3, isLostFleet = false): Promi
         researchData: true,
         advancedTechsData: true,
         standardTechsData: true,
+        artifactsData: true,
         qicPoints: true,
         techPoints: true,
         totalScoredPoints: true,
@@ -527,6 +569,7 @@ export async function getAnalytics(req: SearchRequest, selectedGroup?: string[])
     artifacts = [],
     advancedTechConditions = [],
     standardTechConditions = [],
+    artifactConditions = [],
     playerRaceConditions = [],
   } = req;
 
@@ -771,6 +814,44 @@ export async function getAnalytics(req: SearchRequest, selectedGroup?: string[])
           EXISTS (
             SELECT 1 FROM players p WHERE p.table_id = g.table_id
             AND p.standard_techs_data @> ARRAY[${techId}::int]
+          )
+        `);
+      }
+    }
+
+    if (existsFragments.length > 0) {
+      const whereClause = Prisma.join(existsFragments, ' AND ');
+      const matchingGames = await prisma.$queryRaw<{ table_id: number }[]>`
+        SELECT DISTINCT g.table_id FROM games g WHERE ${whereClause}
+      `;
+      const matchingTableIds = matchingGames.map((r) => r.table_id);
+
+      if (matchingTableIds.length === 0) return { totalGames: 0, factionStats: [], playerStats: [], queryMs: Math.round(performance.now() - dbStart) };
+
+      andConditions.push({ tableId: { in: matchingTableIds } });
+    }
+  }
+
+  if (artifactConditions.length > 0) {
+    const existsFragments: Prisma.Sql[] = [];
+
+    for (const cond of artifactConditions) {
+      const artifactId = cond.artifactId;
+      const raceId = cond.race ? RACE_NAME_TO_ID[cond.race] : undefined;
+
+      if (raceId !== undefined) {
+        existsFragments.push(Prisma.sql`
+          EXISTS (
+            SELECT 1 FROM players p WHERE p.table_id = g.table_id
+            AND p.race_id = ${raceId}
+            AND p.artifacts_data @> ARRAY[${artifactId}::int]
+          )
+        `);
+      } else {
+        existsFragments.push(Prisma.sql`
+          EXISTS (
+            SELECT 1 FROM players p WHERE p.table_id = g.table_id
+            AND p.artifacts_data @> ARRAY[${artifactId}::int]
           )
         `);
       }

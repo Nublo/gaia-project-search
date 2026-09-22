@@ -82,6 +82,7 @@ export default function SearchResults({ games, total, isLoading = false, searchR
               highlightedArtifacts={searchRequest?.artifacts}
               advancedTechConditions={searchRequest?.advancedTechConditions}
               standardTechConditions={searchRequest?.standardTechConditions}
+              artifactConditions={searchRequest?.artifactConditions}
               sortBy={searchRequest?.sortBy}
             />
           ))}

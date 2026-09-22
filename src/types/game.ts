@@ -27,6 +27,7 @@ export interface PlayerResult {
   researchData: { research: number[][] };
   advancedTechsData: number[];
   standardTechsData: number[];
+  artifactsData: number[];
   qicPoints: number;
   techPoints: number;
   totalScoredPoints: number;
@@ -41,6 +42,11 @@ export interface AdvancedTechCondition {
 export interface StandardTechCondition {
   race?: string;
   techId: number;
+}
+
+export interface ArtifactCondition {
+  race?: string;
+  artifactId: number;
 }
 
 export interface PlayerRaceCondition {
@@ -62,6 +68,7 @@ export interface SearchRequest {
   artifacts?: number[];
   advancedTechConditions?: AdvancedTechCondition[];
   standardTechConditions?: StandardTechCondition[];
+  artifactConditions?: ArtifactCondition[];
   playerRaceConditions?: PlayerRaceCondition[];
   sortBy?: 'qicPoints' | 'techPoints' | 'totalScoredPoints' | 'finalScore' | 'factionCost';
 }

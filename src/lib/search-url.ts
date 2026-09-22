@@ -42,6 +42,10 @@ export function serializeSearchRequest(req: SearchRequest): string {
     params.append('stdtech', `${c.race ?? ''}:${c.techId}`);
   });
 
+  (req.artifactConditions ?? []).forEach((c) => {
+    params.append('artifactcond', `${c.race ?? ''}:${c.artifactId}`);
+  });
+
   (req.playerRaceConditions ?? []).forEach((c) => {
     params.append('playerrace', `${c.playerNames.join('|')}:${c.race}`);
   });
@@ -120,6 +124,13 @@ export function deserializeSearchRequest(raw: Record<string, string | string[] |
       const race = idx > 0 ? v.slice(0, idx) : undefined;
       const techId = Number(v.slice(idx + 1));
       return { race, techId };
+    }),
+
+    artifactConditions: get('artifactcond').map((v) => {
+      const idx = v.indexOf(':');
+      const race = idx > 0 ? v.slice(0, idx) : undefined;
+      const artifactId = Number(v.slice(idx + 1));
+      return { race, artifactId };
     }),
 
     playerRaceConditions: get('playerrace').map((v) => {

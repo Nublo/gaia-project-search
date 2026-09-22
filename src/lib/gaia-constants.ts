@@ -143,6 +143,10 @@ export enum EventType {
 
   // Full board state sync (used to read Lost Fleet spaceship state, e.g. artifacts)
   NOTIFY_UPDATE = 'notifyUpdate',
+
+  // Power/resource discards — also used to claim a Lost Fleet Artifact token
+  // (discard 6 Power), identified by the presence of args.artifactTokenId
+  NOTIFY_DISCARD = 'notifyDiscard',
 }
 
 // ============================================================================
@@ -312,6 +316,7 @@ export interface PlayerRaceMapping {
   researchLevels: number[]; // [t1..t6] — current absolute levels during parsing, tracks 1-6 at indices 0-5
   advancedTechs: number[]; // sorted array of advanced tech tile IDs (10-24 base, 30-36 Lost Fleet) taken by this player
   standardTechs: number[]; // sorted array of standard tech tile IDs (1-9 base, 40-42 Lost Fleet) taken by this player
+  artifacts: number[];     // sorted array of Lost Fleet Artifact token IDs (1-13) claimed by this player
   qicPoints: number;       // VP from 2-QIC (planet diversity) and 3-QIC (rescore federation) actions
   techPoints: number;      // VP from technology tile gains and round-end tech scoring
   totalScoredPoints: number; // finalScore - startingScore

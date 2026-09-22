@@ -167,6 +167,7 @@ export class GameLogParser {
               : [0, 0, 0, 0, 0, 0],
             advancedTechs: [], // Will be populated when notifyGainTech events with coverupTechId != 0 are found
             standardTechs: [], // Will be populated when notifyGainTech events with coverupTechId === 0 are found
+            artifacts: [], // Will be populated when notifyDiscard events with an artifactTokenId are found
             qicPoints: 0,
             techPoints: 0,
             totalScoredPoints: 0,
@@ -280,6 +281,20 @@ export class GameLogParser {
           const twilight = ships?.find((s: { type: number }) => s.type === 18);
           if (twilight?.availArtifacts) {
             lostFleetArtifacts = (twilight.availArtifacts as number[]).filter((id) => id !== 0);
+          }
+        }
+
+        // Attribute Lost Fleet Artifact claims to the claiming player (discard 6
+        // Power to gain an Artifact token). notifyDiscard is also used for two
+        // unrelated power-charging actions that never carry artifactTokenId, so
+        // that field's presence is what identifies an artifact claim.
+        if (eventType === EventType.NOTIFY_DISCARD && event.args?.artifactTokenId !== undefined) {
+          const playerId = parseInt(event.args.playerId);
+          const artifactTokenId = parseInt(event.args.artifactTokenId);
+          const player = players.find((p) => p.playerId === playerId);
+          if (player && !player.artifacts.includes(artifactTokenId)) {
+            player.artifacts.push(artifactTokenId);
+            console.log(`[Parser] ${event.args.player_name} claimed artifact ${artifactTokenId}`);
           }
         }
 

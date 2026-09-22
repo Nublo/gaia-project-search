@@ -1039,6 +1039,99 @@ describe('GameLogParser — Lost Fleet artifacts', () => {
 })
 
 // ============================================================================
+// TESTS: PER-PLAYER LOST FLEET ARTIFACT CLAIMS
+// ============================================================================
+
+describe('GameLogParser — per-player artifact claims', () => {
+  function artifactClaimEvent(playerId: number, playerName: string, artifactTokenId: number) {
+    return {
+      type: 'notifyDiscard',
+      log: '${player_name} discards ${payStr} to gain [ARTIFACT${artifactTokenId}]',
+      args: { player_name: playerName, payStr: '[POWER6]', artifactTokenId, playerId: String(playerId) },
+    }
+  }
+
+  function powerChargeDiscardEvent(playerId: number, playerName: string) {
+    // notifyDiscard is also used for unrelated power-charging actions — these
+    // never carry artifactTokenId and must not be mistaken for a claim.
+    return {
+      type: 'notifyDiscard',
+      log: '${player_name} discards ${payStr} to charge ${gainStr}',
+      args: { player_name: playerName, payStr: '[POWER4]', gainStr: '[POWER4]', playerId: String(playerId) },
+    }
+  }
+
+  it('attributes an artifact claim to the claiming player', () => {
+    const logResponse: GetGameLogResponse = {
+      status: 1,
+      data: {
+        logs: [
+          {
+            channel: '', table_id: '820488760', packet_id: '1', packet_type: 'history', move_id: '1', time: '1700000000',
+            data: [
+              chooseRaceEvent(1, 'Alice', 1),
+              chooseRaceEvent(2, 'Bob', 2),
+              artifactClaimEvent(1, 'Alice', 12),
+            ],
+          },
+        ],
+      },
+    }
+
+    const tableInfo = makeTableInfo({
+      players: [
+        { player_id: '1', gamerank: '1', rank_after_game: '2600' },
+        { player_id: '2', gamerank: '2', rank_after_game: '2500' },
+      ],
+    })
+    const result = GameLogParser.parseGameLog(makeGameTable(), logResponse, tableInfo)
+    expect(result.players.find((p) => p.playerId === 1)!.artifacts).toEqual([12])
+    expect(result.players.find((p) => p.playerId === 2)!.artifacts).toEqual([])
+  })
+
+  it('collects multiple claims by the same player and dedupes repeats', () => {
+    const logResponse: GetGameLogResponse = {
+      status: 1,
+      data: {
+        logs: [
+          {
+            channel: '', table_id: '820488760', packet_id: '1', packet_type: 'history', move_id: '1', time: '1700000000',
+            data: [
+              chooseRaceEvent(1, 'Alice', 1),
+              artifactClaimEvent(1, 'Alice', 6),
+              artifactClaimEvent(1, 'Alice', 7),
+              artifactClaimEvent(1, 'Alice', 6), // duplicate — should not appear twice
+            ],
+          },
+        ],
+      },
+    }
+
+    const tableInfo = makeTableInfo({ players: [{ player_id: '1', gamerank: '1', rank_after_game: '2600' }] })
+    const result = GameLogParser.parseGameLog(makeGameTable(), logResponse, tableInfo)
+    expect(result.players[0].artifacts).toEqual([6, 7])
+  })
+
+  it('ignores notifyDiscard events without an artifactTokenId (e.g. power-area charging)', () => {
+    const logResponse: GetGameLogResponse = {
+      status: 1,
+      data: {
+        logs: [
+          {
+            channel: '', table_id: '820488760', packet_id: '1', packet_type: 'history', move_id: '1', time: '1700000000',
+            data: [chooseRaceEvent(1, 'Alice', 1), powerChargeDiscardEvent(1, 'Alice')],
+          },
+        ],
+      },
+    }
+
+    const tableInfo = makeTableInfo({ players: [{ player_id: '1', gamerank: '1', rank_after_game: '2600' }] })
+    const result = GameLogParser.parseGameLog(makeGameTable(), logResponse, tableInfo)
+    expect(result.players[0].artifacts).toEqual([])
+  })
+})
+
+// ============================================================================
 // TESTS: FACTION COST
 // ============================================================================
 
@@ -1289,6 +1382,13 @@ describe('GameLogParser.parseGameLog — real fixture (Lost Fleet game)', () => 
 
   it('extracts the Lost Fleet artifacts present in the game (unpadded, zero slots dropped)', () => {
     expect(result.artifacts).toEqual([6, 12])
+  })
+
+  it('attributes the one claimed artifact to the player who claimed it', () => {
+    const nigator = result.players.find((p) => p.playerName === 'Nigator')!
+    const samaxxxxx = result.players.find((p) => p.playerName === 'Samaxxxxx')!
+    expect(nigator.artifacts).toEqual([12])
+    expect(samaxxxxx.artifacts).toEqual([])
   })
 })
 
