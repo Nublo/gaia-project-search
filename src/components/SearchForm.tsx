@@ -72,7 +72,7 @@ function chunk<T>(arr: T[], size: number): T[][] {
 const raceRowsBase = chunk(races, 7);          // 14 base factions: 2 rows of 7
 const raceRowsLostFleet = chunk(allRaces, 6);   // 18 factions incl. Lost Fleet: 3 rows of 6
 const fractionRowsBase = [races];               // 14 base factions: single row (unchanged from before)
-const fractionRowsLostFleet = chunk(allRaces, 9); // 18 factions incl. Lost Fleet: 2 rows of 9
+const fractionRowsLostFleet = [allRaces];        // 18 factions incl. Lost Fleet: single row, wraps naturally
 
 const finalScoringRowsBase = [[1, 2, 3, 4, 5, 6]]; // base game: single row of 6
 // Lost Fleet: same relative order as the base game — 10 (Lost Fleet art for
@@ -679,7 +679,7 @@ export default function SearchForm({ onSearch, isLoading = false }: SearchFormPr
           {/* Tile picker */}
           <div className="flex flex-col gap-2 mb-4">
             {(lostFleetMode ? fractionRowsLostFleet : fractionRowsBase).map((row, rowIdx) => (
-              <div key={rowIdx} className={lostFleetMode ? 'flex justify-between' : 'flex flex-wrap gap-2'}>
+              <div key={rowIdx} className="flex flex-wrap gap-2">
                 {row.map(({ name, file }) => {
                   const isActive = fractionConfigs.some((fc) => fc.race === name);
                   const pairedName = FACTION_PAIRS[name];
