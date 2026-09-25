@@ -6,12 +6,12 @@ import { Spoiler } from "@/components/Spoiler";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "3 Player Auction Rules — Gaia Project",
+  title: "3–4 Player Auction Rules — Gaia Project",
 };
 
 const components = { Spoiler };
 
 export default function Page() {
-  const source = readFileSync(join(process.cwd(), "src/content/auction-3p.mdx"), "utf8");
+  const source = readFileSync(join(process.cwd(), "src/content/auction-3-4p.mdx"), "utf8");
   return <MDXRemote source={source} components={components} options={{ mdxOptions: { remarkPlugins: [remarkGfm] } }} />;
 }

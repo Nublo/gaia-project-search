@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function AuctionRulesPage() {
-  redirect("/auction-rules/2p");
+  redirect("/auction-rules/playground");
 }

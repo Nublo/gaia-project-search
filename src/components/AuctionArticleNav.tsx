@@ -4,10 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const articles = [
-  { label: "2 Player", href: "/auction-rules/2p" },
-  { label: "3 Player", href: "/auction-rules/3p" },
-  { label: "4 Player", href: "/auction-rules/4p" },
   { label: "Playground", href: "/auction-rules/playground" },
+  { label: "2 Player", href: "/auction-rules/2p" },
+  { label: "3–4 Player", href: "/auction-rules/3-4p" },
 ];
 
 function useArticleNav() {
