@@ -812,7 +812,7 @@ export default function SearchForm({ onSearch, isLoading = false }: SearchFormPr
               </div>
 
               {/* Add standard tech + advanced tech buttons */}
-              <div className="mt-2 flex gap-2">
+              <div className="mt-2 flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => setStandardTechDialogRace(fc.race)}
