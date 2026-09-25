@@ -7,6 +7,7 @@ const articles = [
   { label: "2 Player", href: "/auction-rules/2p" },
   { label: "3 Player", href: "/auction-rules/3p" },
   { label: "4 Player", href: "/auction-rules/4p" },
+  { label: "Playground", href: "/auction-rules/playground" },
 ];
 
 function useArticleNav() {
