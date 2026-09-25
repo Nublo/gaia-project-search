@@ -582,9 +582,19 @@ export default function SearchForm({ onSearch, isLoading = false }: SearchFormPr
 
           {/* Auction */}
           <div>
-            <label htmlFor="auctionDropdown" className="block text-sm font-medium text-gray-700 mb-2">
-              Auction
-            </label>
+            <div className="flex items-baseline gap-2 mb-2">
+              <label htmlFor="auctionDropdown" className="text-sm font-medium text-gray-700">
+                Auction
+              </label>
+              <a
+                href="/auction-rules/playground"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
+              >
+                How does it work? ↗
+              </a>
+            </div>
             <select
               id="auctionDropdown"
               value={criteria.isAuction === true ? 'true' : criteria.isAuction === false ? 'false' : ''}
