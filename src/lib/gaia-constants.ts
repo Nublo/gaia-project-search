@@ -314,7 +314,7 @@ export interface PlayerRaceMapping {
   buildings: number[][]; // buildings[round] = [buildingId1, buildingId2, ...]
   research: number[][];    // research[roundIdx][trackIdx] = absolute level at end of that round (0-indexed)
   researchLevels: number[]; // [t1..t6] — current absolute levels during parsing, tracks 1-6 at indices 0-5
-  advancedTechs: number[]; // sorted array of advanced tech tile IDs (10-24 base, 30-36 Lost Fleet) taken by this player
+  advancedTechs: number[]; // sorted array of advanced tech tile IDs (10-24 base, 30-35 Lost Fleet) taken by this player
   standardTechs: number[]; // sorted array of standard tech tile IDs (1-9 base, 40-42 Lost Fleet) taken by this player
   artifacts: number[];     // sorted array of Lost Fleet Artifact token IDs (1-13) claimed by this player
   qicPoints: number;       // VP from 2-QIC (planet diversity) and 3-QIC (rescore federation) actions
@@ -334,7 +334,7 @@ export const RESEARCH_TRACK_SHORT_NAMES: Record<number, string> = {
   6: 'Science',
 };
 
-// Advanced technology tile labels (IDs 10-24 base game, 30-36 Lost Fleet)
+// Advanced technology tile labels (IDs 10-24 base game, 30-35 Lost Fleet)
 export const ADVANCED_TECH_LABELS: Record<number, string> = {
   10: '+1Q5c',
   11: '+3ore',
@@ -357,7 +357,6 @@ export const ADVANCED_TECH_LABELS: Record<number, string> = {
   33: '+2vpAsteroidLF',
   34: '+2vpTerraformLF',
   35: '+4vpGreenActionLF',
-  36: '+1vpPlanetTypeLF',
 };
 
 // Filenames for advanced tech images in /public/advanced-techs/
@@ -383,8 +382,17 @@ export const ADVANCED_TECH_IMAGES: Record<number, string> = {
   33: '33_(+2vpAsteroidLF).png',
   34: '34_(+2vpTerraformLF).png',
   35: '35_(+4vpGreenActionLF).png',
-  36: '36_(+1vpPlanetTypeLF).png',
 };
+
+// Lost-Fleet-art variant of advanced tech 21 (+1vpPlanetType). BGA logs this
+// tile as techId 21 in Lost Fleet games too (verified: no LF game uses 36), so
+// it has no numeric ID of its own. UI-only: in Lost Fleet mode the picker shows
+// this image in place of 21's base art (see getAdvancedTechImage).
+export const ADVANCED_TECH_LOST_FLEET_ART_VARIANT_IMAGE = '36_(+1vpPlanetTypeLF).png';
+
+export function getAdvancedTechImage(id: number, lostFleetMode: boolean): string {
+  return id === 21 && lostFleetMode ? ADVANCED_TECH_LOST_FLEET_ART_VARIANT_IMAGE : ADVANCED_TECH_IMAGES[id];
+}
 
 // Standard technology tile labels (IDs 1-9 base game, 40-42 Lost Fleet)
 export const STANDARD_TECH_LABELS: Record<number, string> = {
@@ -420,9 +428,13 @@ export const STANDARD_TECH_IMAGES: Record<number, string> = {
 
 // KForPlanetsLF.png is a Lost-Fleet-art variant of standard tech 2
 // (KForPlanetTypes) — same underlying tile/ID, no numeric ID of its own.
-// UI-only: the picker shows this image as an extra tile whose selection
-// searches/toggles as techId 2 (see SearchForm.tsx's STANDARD_TECH_LOST_FLEET_EXTRAS).
+// UI-only: in Lost Fleet mode this image replaces id 2's base art (see
+// getStandardTechImage) rather than showing as a separate selectable tile.
 export const STANDARD_TECH_LOST_FLEET_ART_VARIANT_IMAGE = 'KForPlanetsLF.png';
+
+export function getStandardTechImage(id: number, lostFleetMode: boolean): string {
+  return id === 2 && lostFleetMode ? STANDARD_TECH_LOST_FLEET_ART_VARIANT_IMAGE : STANDARD_TECH_IMAGES[id];
+}
 
 export interface BuildingAction {
   playerId: number;

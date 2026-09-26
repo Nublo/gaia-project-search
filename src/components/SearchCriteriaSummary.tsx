@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import type { SearchRequest, StructureCondition, ResearchCondition, AdvancedTechCondition, StandardTechCondition, ArtifactCondition } from '@/types/game';
-import { getFinalScoringName, getArtifactName, RESEARCH_TRACK_SHORT_NAMES, ADVANCED_TECH_LABELS, ADVANCED_TECH_IMAGES, STANDARD_TECH_LABELS, STANDARD_TECH_IMAGES, ArtifactType, ARTIFACT_IMAGES } from '@/lib/gaia-constants';
+import { getFinalScoringName, getArtifactName, RESEARCH_TRACK_SHORT_NAMES, ADVANCED_TECH_LABELS, getAdvancedTechImage, STANDARD_TECH_LABELS, getStandardTechImage, ArtifactType, ARTIFACT_IMAGES } from '@/lib/gaia-constants';
 
 const STRUCTURE_LABELS: Record<string, string> = {
   'mine': 'Mine',
@@ -167,7 +167,7 @@ export function SearchCriteriaSummary({ req }: { req: SearchRequest }) {
           {advancedTechs.map((cond, i) => (
             <span key={`t-${i}`} className="inline-flex items-center gap-1.5 px-3 py-1 bg-purple-50 border border-purple-300 rounded-full text-sm text-purple-800">
               <Image
-                src={`/advanced-techs/${ADVANCED_TECH_IMAGES[cond.techId]}`}
+                src={`/advanced-techs/${getAdvancedTechImage(cond.techId, !!req.isLostFleet)}`}
                 alt={ADVANCED_TECH_LABELS[cond.techId]}
                 width={24}
                 height={24}
@@ -179,7 +179,7 @@ export function SearchCriteriaSummary({ req }: { req: SearchRequest }) {
           {standardTechs.map((cond, i) => (
             <span key={`st-${i}`} className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-300 rounded-full text-sm text-amber-800">
               <Image
-                src={`/standart-techs/${STANDARD_TECH_IMAGES[cond.techId]}`}
+                src={`/standart-techs/${getStandardTechImage(cond.techId, !!req.isLostFleet)}`}
                 alt={STANDARD_TECH_LABELS[cond.techId]}
                 width={24}
                 height={24}

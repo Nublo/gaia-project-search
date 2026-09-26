@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import type { SearchRequest, StructureCondition, ResearchCondition, AdvancedTechCondition, StandardTechCondition, ArtifactCondition } from '@/types/game';
-import { FINAL_SCORING_IMAGES, getFinalScoringName, RESEARCH_TRACK_SHORT_NAMES, ADVANCED_TECH_LABELS, ADVANCED_TECH_IMAGES, STANDARD_TECH_LABELS, STANDARD_TECH_IMAGES, STANDARD_TECH_LOST_FLEET_ART_VARIANT_IMAGE, ArtifactType, ARTIFACT_IMAGES, getArtifactName } from '@/lib/gaia-constants';
+import { FINAL_SCORING_IMAGES, getFinalScoringName, RESEARCH_TRACK_SHORT_NAMES, ADVANCED_TECH_LABELS, getAdvancedTechImage, STANDARD_TECH_LABELS, getStandardTechImage, ArtifactType, ARTIFACT_IMAGES, getArtifactName } from '@/lib/gaia-constants';
 import { serializeSearchRequest } from '@/lib/search-url';
 
 interface FormState {
@@ -97,21 +97,24 @@ interface TechTile {
 }
 
 // Advanced tech IDs 30+ are Lost Fleet; base game only ever uses 10-24.
+// Like standard tech 2, id 21 (+1vpPlanetType) has Lost-Fleet art but the same
+// ID — in Lost Fleet mode its image is swapped rather than adding a tile.
 function buildAdvancedTechTiles(includeLostFleet: boolean): TechTile[] {
   return Object.keys(ADVANCED_TECH_LABELS)
     .map(Number)
     .filter((id) => includeLostFleet || id < 30)
-    .map((id) => ({ key: String(id), searchId: id, image: ADVANCED_TECH_IMAGES[id], label: ADVANCED_TECH_LABELS[id] }));
+    .map((id) => ({
+      key: String(id),
+      searchId: id,
+      image: getAdvancedTechImage(id, includeLostFleet),
+      label: ADVANCED_TECH_LABELS[id],
+    }));
 }
 
 // Standard tech IDs 40+ are Lost Fleet; base game only ever uses 1-9.
 // KForPlanetsLF.png is Lost-Fleet art for the same tile as id 2 (no ID of its
 // own) — in Lost Fleet mode it replaces id 2's base art rather than showing
 // as a separate selectable tile (there's only ever one tech-2 selection).
-function getStandardTechImage(id: number, lostFleetMode: boolean): string {
-  return id === 2 && lostFleetMode ? STANDARD_TECH_LOST_FLEET_ART_VARIANT_IMAGE : STANDARD_TECH_IMAGES[id];
-}
-
 function buildStandardTechTiles(includeLostFleet: boolean): TechTile[] {
   return Object.keys(STANDARD_TECH_LABELS)
     .map(Number)
@@ -897,7 +900,7 @@ export default function SearchForm({ onSearch, isLoading = false }: SearchFormPr
                       className="rounded-md overflow-hidden border-2 border-purple-400 hover:border-red-400 hover:opacity-70 transition-all"
                     >
                       <Image
-                        src={`/advanced-techs/${ADVANCED_TECH_IMAGES[techId]}`}
+                        src={`/advanced-techs/${getAdvancedTechImage(techId, lostFleetMode)}`}
                         alt={ADVANCED_TECH_LABELS[techId]}
                         width={32}
                         height={32}
