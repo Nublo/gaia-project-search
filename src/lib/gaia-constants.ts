@@ -458,8 +458,9 @@ export function isLostFleetAdvancedTech(id: number): boolean {
   return id >= 30;
 }
 
-// Round scoring tile labels, keyed by BGA round-bonus ID (1-9 base game,
-// 11-13 Lost Fleet).
+// Round scoring tile labels, keyed by BGA round-bonus ID (1-10 base game,
+// 11-13 Lost Fleet). 9 and 10 are two copies of the same +5vp big buildings
+// tile — BGA gives each its own id.
 export const ROUND_SCORING_LABELS: Record<number, string> = {
   1: '+2vpTerraform',
   2: '+2vpStep',
@@ -470,6 +471,7 @@ export const ROUND_SCORING_LABELS: Record<number, string> = {
   7: '+3vpGaia',
   8: '+4vpGaia',
   9: '+5vpBigBuildings',
+  10: '+5vpBigBuildings',
   11: '+3vpNewSectorOrDeepSpace',
   12: '+3vpNewPlanetType',
   13: '+4vpLab',
@@ -486,6 +488,7 @@ export const ROUND_SCORING_IMAGES: Record<number, string> = {
   7: '7_(+3vpGaia).webp',
   8: '8_(+4vpGaia).webp',
   9: '9_(+5vpBigBuildings).webp',
+  10: '10_(+5vpBigBuildings).webp',
   11: '11_(+3vpNewSectorOrDeepSpace).png',
   12: '12_(+3vpNewPlanetType).png',
   13: '13_(+4vpLab).png',
