@@ -195,6 +195,19 @@ export const FINAL_SCORING_IMAGES: Record<number, string> = {
   [FinalScoringType.PLANET_TYPES_LOST_FLEET]: '10.png',
 };
 
+// BGA uses the same id (3) for planet types in both modes; Lost Fleet games show
+// the Lost Fleet art (our id 10), mirroring getStandardTechImage.
+export function getFinalScoringImage(id: number, lostFleetMode: boolean): string {
+  return id === FinalScoringType.PLANET_TYPES && lostFleetMode
+    ? FINAL_SCORING_IMAGES[FinalScoringType.PLANET_TYPES_LOST_FLEET]
+    : FINAL_SCORING_IMAGES[id];
+}
+
+// Lost-Fleet-only final scorings (asteroids, PI–academy distance, deep space).
+export function isLostFleetFinalScoring(id: number): boolean {
+  return id >= FinalScoringType.ASTEROIDS && id !== FinalScoringType.PLANET_TYPES_LOST_FLEET;
+}
+
 // Maps the `desc` field from notifyScore events to FinalScoringType IDs.
 // All base-game and Lost Fleet missions are confirmed from real logs.
 // Note: PLANET_TYPES_LOST_FLEET (10) is the same underlying condition as
@@ -434,6 +447,52 @@ export const STANDARD_TECH_LOST_FLEET_ART_VARIANT_IMAGE = 'KForPlanetsLF.png';
 
 export function getStandardTechImage(id: number, lostFleetMode: boolean): string {
   return id === 2 && lostFleetMode ? STANDARD_TECH_LOST_FLEET_ART_VARIANT_IMAGE : STANDARD_TECH_IMAGES[id];
+}
+
+// Lost-Fleet-only tiles: standard 40+, advanced 30+ (base game uses 1-9 / 10-24).
+export function isLostFleetStandardTech(id: number): boolean {
+  return id >= 40;
+}
+
+export function isLostFleetAdvancedTech(id: number): boolean {
+  return id >= 30;
+}
+
+// Round scoring tile labels, keyed by BGA round-bonus ID (1-9 base game,
+// 11-13 Lost Fleet).
+export const ROUND_SCORING_LABELS: Record<number, string> = {
+  1: '+2vpTerraform',
+  2: '+2vpStep',
+  3: '+2vpMine',
+  4: '+5vpFed',
+  5: '+3vpTS',
+  6: '+4vpTS',
+  7: '+3vpGaia',
+  8: '+4vpGaia',
+  9: '+5vpBigBuildings',
+  11: '+3vpNewSectorOrDeepSpace',
+  12: '+3vpNewPlanetType',
+  13: '+4vpLab',
+};
+
+// Filenames for round scoring tile images in /public/round-bonus/tiles/
+export const ROUND_SCORING_IMAGES: Record<number, string> = {
+  1: '1_(+2vpTerraform).webp',
+  2: '2_(+2vpStep).webp',
+  3: '3_(+2vpMine).webp',
+  4: '4_(+5vpFed).webp',
+  5: '5_(+3vpTS).webp',
+  6: '6_(+4vpTS).webp',
+  7: '7_(+3vpGaia).webp',
+  8: '8_(+4vpGaia).webp',
+  9: '9_(+5vpBigBuildings).webp',
+  11: '11_(+3vpNewSectorOrDeepSpace).png',
+  12: '12_(+3vpNewPlanetType).png',
+  13: '13_(+4vpLab).png',
+};
+
+export function isLostFleetRoundScoring(id: number): boolean {
+  return id >= 11;
 }
 
 export interface BuildingAction {

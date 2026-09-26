@@ -1,0 +1,20 @@
+{
+  "rounds": [
+    { "top": 33.07, "left": 17.31, "width": 15.45, "height": 18.12, "rotate": -75 },
+    { "top": 21.42, "left": 23.95, "width": 15.45, "height": 18.12, "rotate": -45 },
+    { "top": 14.69, "left": 35.45, "width": 15.45, "height": 18.12, "rotate": -15 },
+    { "top": 14.69, "left": 48.73, "width": 15.45, "height": 18.12, "rotate": 15 },
+    { "top": 21.42, "left": 60.23, "width": 15.45, "height": 18.12, "rotate": 45 },
+    { "top": 33.07, "left": 66.87, "width": 15.45, "height": 18.12, "rotate": 75 }
+  ],
+  "finalScorings": [
+    { "top": 49.53, "left": 58.05, "width": 19.85, "height": 13.28 },
+    { "top": 68.79, "left": 58.05, "width": 19.85, "height": 13.0 }
+  ],
+  "lostFleetExtension": {
+    "left": 21.49,
+    "width": 57.02,
+    "overlap": 3.0
+  },
+  "lostFleetExtensionAdvancedTech": { "top": 35.51, "left": 37.19, "width": 25.78, "height": 53.74 }
+}
