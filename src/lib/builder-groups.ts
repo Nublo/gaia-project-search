@@ -9,6 +9,13 @@ import {
   FinalScoringType,
   getFinalScoringImage,
   isLostFleetFinalScoring,
+  ARTIFACT_NAMES,
+  ARTIFACT_IMAGES,
+  type ArtifactType,
+  FEDERATION_TOKEN_NAMES,
+  FEDERATION_TOKEN_IMAGES,
+  GLEENS_FEDERATION_TOKEN,
+  isLostFleetFederationToken,
   getStandardTechImage,
   getAdvancedTechImage,
   isLostFleetStandardTech,
@@ -17,10 +24,15 @@ import {
 } from '@/lib/gaia-constants';
 import techLayout from '@/lib/tech-board-layout.json';
 import roundLayout from '@/lib/round-board-layout.json';
-import type { RoundBoardLayout, TechBoardLayout } from '@/types/tech-board-layout';
+import shipLayout from '@/lib/ship-layout.json';
+import type { RoundBoardLayout, ShipLayout, TechBoardLayout } from '@/types/tech-board-layout';
 
 export const TECH_LAYOUT = techLayout as TechBoardLayout;
 export const ROUND_LAYOUT = roundLayout as RoundBoardLayout;
+export const SHIPS = shipLayout.ships as ShipLayout[];
+
+export const PLAYER_COUNTS = [2, 3, 4] as const;
+export const DEFAULT_PLAYERS = 4;
 
 // One kind of tile: its own list and its own row of slots, which may be spread
 // over several board surfaces. Tiles of a group only go into that group's slots.
@@ -34,6 +46,8 @@ export interface TileGroup {
   isLostFleet: (id: number) => boolean;
   slotCount: number;
   lostFleetOnlySlots: number[]; // slots that only exist in Lost Fleet mode
+  // Slots that only exist at some player counts (default: all of them).
+  slotExists?: (slotIdx: number, players: number) => boolean;
   tileAspect: string; // list tile aspect class, e.g. 'aspect-[150/116]'
 }
 
@@ -49,7 +63,8 @@ export const STANDARD_GROUP: TileGroup = {
   key: 'standard',
   param: 'std',
   title: 'Standard Technologies',
-  ids: sortedIds(STANDARD_TECH_LABELS),
+  // Lost Fleet standard techs only go on ships (SHIP_TECH_GROUP), never here.
+  ids: sortedIds(STANDARD_TECH_LABELS).filter((id) => !isLostFleetStandardTech(id)),
   labels: STANDARD_TECH_LABELS,
   imageSrc: (id, lostFleet) => `/standart-techs/${getStandardTechImage(id, lostFleet)}`,
   isLostFleet: isLostFleetStandardTech,
@@ -100,7 +115,93 @@ export const FINAL_GROUP: TileGroup = {
   tileAspect: 'aspect-[199/128]',
 };
 
-export const BUILDER_GROUPS: TileGroup[] = [STANDARD_GROUP, ADVANCED_GROUP, ROUNDS_GROUP, FINAL_GROUP];
+// Lost Fleet standard techs, one per ship screen. Slot = ship type - 15
+// (Eclipse, T.F. Mars, Rebellion); Rebellion isn't used in 2 player games.
+export const SHIP_TECH_BASE_TYPE = 15;
+export const REBELLION_SLOT = 2;
+
+const federationTokenIds = sortedIds(FEDERATION_TOKEN_NAMES);
+const federationImage = (id: number) => `/federationTokens/${FEDERATION_TOKEN_IMAGES[id]}`;
+
+// The base game token on top of the Terraforming track (BGA bonusFedToken).
+// The Gleens' token never goes there.
+export const TERRA_FEDERATION_GROUP: TileGroup = {
+  key: 'terraFed',
+  param: 'fed',
+  title: 'Federation Tokens',
+  ids: federationTokenIds.filter((id) => !isLostFleetFederationToken(id) && id !== GLEENS_FEDERATION_TOKEN),
+  labels: FEDERATION_TOKEN_NAMES,
+  imageSrc: federationImage,
+  isLostFleet: () => false,
+  slotCount: 1,
+  lostFleetOnlySlots: [],
+  tileAspect: 'aspect-[96/119]',
+};
+
+// Lost Fleet tokens, one on each ship's shield. Slot = ship type - 15, so
+// Eclipse 0, T.F. Mars 1, Rebellion 2, Twilight 3.
+export const SHIP_FEDERATION_GROUP: TileGroup = {
+  key: 'shipFed',
+  param: 'shf',
+  title: 'Lost Fleet Federation Tokens',
+  ids: federationTokenIds.filter(isLostFleetFederationToken),
+  labels: FEDERATION_TOKEN_NAMES,
+  imageSrc: federationImage,
+  isLostFleet: () => true,
+  slotCount: 4,
+  lostFleetOnlySlots: [],
+  slotExists: (slotIdx, players) => slotIdx !== REBELLION_SLOT || players > 2,
+  tileAspect: 'aspect-[96/119]',
+};
+
+export const SHIP_TECH_GROUP: TileGroup = {
+  key: 'shipTech',
+  param: 'shp',
+  title: 'Lost Fleet Technologies',
+  ids: sortedIds(STANDARD_TECH_LABELS).filter(isLostFleetStandardTech),
+  labels: STANDARD_TECH_LABELS,
+  imageSrc: (id, lostFleet) => `/standart-techs/${getStandardTechImage(id, lostFleet)}`,
+  isLostFleet: () => true,
+  slotCount: 3,
+  lostFleetOnlySlots: [],
+  slotExists: (slotIdx, players) => slotIdx !== REBELLION_SLOT || players > 2,
+  tileAspect: 'aspect-[148/116]',
+};
+
+// Twilight holds one artifact per player, in BGA's availArtifacts order.
+export const ARTIFACT_GROUP: TileGroup = {
+  key: 'artifacts',
+  param: 'art',
+  title: 'Artifacts',
+  ids: sortedIds(ARTIFACT_NAMES),
+  labels: ARTIFACT_NAMES,
+  imageSrc: (id) => `/artifacts/${ARTIFACT_IMAGES[id as ArtifactType]}`,
+  isLostFleet: () => true,
+  slotCount: 4,
+  lostFleetOnlySlots: [],
+  slotExists: (slotIdx, players) => slotIdx < players,
+  tileAspect: 'aspect-[166/127]',
+};
+
+export const BUILDER_GROUPS: TileGroup[] = [
+  STANDARD_GROUP,
+  ADVANCED_GROUP,
+  TERRA_FEDERATION_GROUP,
+  ROUNDS_GROUP,
+  FINAL_GROUP,
+  SHIP_TECH_GROUP,
+  SHIP_FEDERATION_GROUP,
+  ARTIFACT_GROUP,
+];
+
+export function slotExists(g: TileGroup, slotIdx: number, players: number): boolean {
+  return g.slotExists ? g.slotExists(slotIdx, players) : true;
+}
+
+export function parsePlayers(raw: string | string[] | undefined): number {
+  const n = Number(Array.isArray(raw) ? raw[0] : raw);
+  return (PLAYER_COUNTS as readonly number[]).includes(n) ? n : DEFAULT_PLAYERS;
+}
 
 // Parses repeated "slotIdx:tileId" params (e.g. ?std=0:3&std=2:7) into a
 // fixed-length slot row, mirroring the compact style used by search-url.ts.

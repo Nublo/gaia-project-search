@@ -13,6 +13,7 @@ export interface TechBoardLayout {
   standard: SlotRect[]; // 9 standard-tech slots
   advanced: SlotRect[]; // 6 advanced-tech slots, one per research track
   lostFleetColonizeTile: SlotRect; // covers the 3 QIC actions, which Lost Fleet removes
+  terraformingFederation: SlotRect; // federation token on top of the Terraforming track
 }
 
 export interface RoundBoardLayout {
@@ -24,4 +25,18 @@ export interface RoundBoardLayout {
   lostFleetExtension: { left: number; width: number; overlap: number };
   // Advanced tech slot on the extension, as percentages of the extension image.
   lostFleetExtensionAdvancedTech: SlotRect;
+}
+
+// Lost Fleet ships (src/lib/ship-layout.json). Slots are percentages of each
+// ship image; tech = the screen holding its Lost Fleet standard tech, artifacts
+// = Twilight's 4 oval sockets (top-left, top-right, bottom-left, bottom-right).
+export interface ShipLayout {
+  type: number; // BGA lostFleet.ships[].type
+  name: string;
+  image: string; // file in /public/ships/
+  width: number;
+  height: number;
+  tech?: SlotRect;
+  federation: SlotRect; // the shield holding the ship's federation token
+  artifacts?: SlotRect[];
 }

@@ -35,7 +35,7 @@ export default function BgaImportBookmarklet() {
             <kbd className="px-1 rounded border border-gray-300 bg-gray-50 text-xs">⌘/Ctrl + Shift + B</kbd>.
           </li>
           <li>Open a Gaia Project game or its replay on Board Game Arena.</li>
-          <li>Click the bookmark — this builder opens in a new tab with that game&apos;s setup: technologies, round and final scorings.</li>
+          <li>Click the bookmark — this builder opens in a new tab with that game&apos;s setup: technologies, round and final scorings, federation tokens, Lost Fleet ships and artifacts.</li>
         </ol>
       </div>
       {hint && (

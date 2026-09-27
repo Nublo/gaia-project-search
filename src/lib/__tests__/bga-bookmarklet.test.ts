@@ -58,6 +58,37 @@ describe('buildBookmarklet', () => {
     expect(url.searchParams.get('lf')).toBe('1');
   });
 
+  it('imports Lost Fleet ships: techs, federation tokens, Twilight artifacts and player count', () => {
+    // logs/ships_example.png: 3 players, Twilight [9, 4, 10, 0], Eclipse 42, T.F. Mars 41, Rebellion 40
+    const { open } = run({
+      game_name: 'gaiaproject',
+      gamedatas: {
+        playerList: [89986833, 19279219, 99319569],
+        board: {
+          techs: [3, 4, 5, 8, 7, 2, 1, 9, 6],
+          advTechs: [13, 20, 10, 15, 11, 35, 34],
+          bonusFedToken: 6,
+          config: { lostFleet: 1 },
+          lostFleet: {
+            ships: [
+              { type: 18, playerIds: [], availFedTokenId: 10, availArtifacts: [9, 4, 10, 0] },
+              { type: 15, playerIds: [], availFedTokenId: 14, availTech: 42 },
+              { type: 16, playerIds: [], availFedTokenId: 15, availTech: 41 },
+              { type: 17, playerIds: [], availFedTokenId: 11, availTech: 40 },
+            ],
+          },
+        },
+      },
+    });
+    const url = new URL(open.mock.calls[0][0]);
+    expect(url.searchParams.get('p')).toBe('3');
+    expect(url.searchParams.getAll('shp')).toEqual(['0:42', '1:41', '2:40']);
+    expect(url.searchParams.getAll('art')).toEqual(['0:9', '1:4', '2:10']);
+    expect(url.searchParams.getAll('fed')).toEqual(['0:6']);
+    // Eclipse 14, T.F. Mars 15, Rebellion 11, Twilight 10 (slot = type - 15)
+    expect(url.searchParams.getAll('shf')).toEqual(['3:10', '0:14', '1:15', '2:11']);
+  });
+
   it('skips empty slots', () => {
     const { open } = run({ game_name: 'gaiaproject', gamedatas: { board: { techs: [3, 4], advTechs: [0, 19, null] } } });
     const url = new URL(open.mock.calls[0][0]);

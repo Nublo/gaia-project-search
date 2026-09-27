@@ -6,6 +6,11 @@
  * Lost Fleet extension). `board.roundBonus` is 1-indexed by round — index 0 is
  * an unused 0 — so round r goes to builder `rnd` slot r - 1. `board.endGameBonus`
  * holds the 2 final scoring ids, which match ours (FinalScoringType 1-9).
+ * Lost Fleet `board.lostFleet.ships[]`: a ship's `availTech` goes to builder
+ * `shp` slot (type - 15); Twilight's `availArtifacts` (0 = empty socket) to
+ * `art`, its `availFedTokenId` to `shf` (same slot numbering, Twilight = 3).
+ * `board.bonusFedToken` (top of Terraforming) goes to `fed`. Player count
+ * comes from `gamedatas.playerList`.
  */
 
 const NOT_A_GAME_MESSAGE =
@@ -22,10 +27,18 @@ if (!board || !Array.isArray(board.techs) || (ui.game_name && ui.game_name !== '
   return;
 }
 var params = new URLSearchParams();
+var players = (ui.gamedatas.playerList || []).length;
+if (players) params.set('p', String(players));
 board.techs.forEach(function (id, i) { if (id) params.append('std', i + ':' + id); });
 (board.advTechs || []).forEach(function (id, i) { if (id) params.append('adv', i + ':' + id); });
 (board.roundBonus || []).forEach(function (id, i) { if (id && i > 0) params.append('rnd', (i - 1) + ':' + id); });
 (board.endGameBonus || []).forEach(function (id, i) { if (id) params.append('fin', i + ':' + id); });
+if (board.bonusFedToken) params.append('fed', '0:' + board.bonusFedToken);
+((board.lostFleet && board.lostFleet.ships) || []).forEach(function (ship) {
+  if (ship.availFedTokenId) params.append('shf', (ship.type - 15) + ':' + ship.availFedTokenId);
+  if (ship.availTech) params.append('shp', (ship.type - 15) + ':' + ship.availTech);
+  (ship.availArtifacts || []).forEach(function (id, i) { if (id) params.append('art', i + ':' + id); });
+});
 if (board.config && board.config.lostFleet) params.set('lf', '1');
 window.open(${JSON.stringify(builderUrl)} + '?' + params.toString(), '_blank');
 `;

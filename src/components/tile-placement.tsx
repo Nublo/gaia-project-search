@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import Image from 'next/image';
 import type { SlotRect } from '@/types/tech-board-layout';
-import type { SlotRows, TileGroup } from '@/lib/builder-groups';
+import { slotExists, type SlotRows, type TileGroup } from '@/lib/builder-groups';
 
 // Tile placement shared by every board on /builder: one hook owns all slot
 // rows, selection, drag and flight state, so a tile picked from a list on one
@@ -65,7 +65,7 @@ function prefersReducedMotion() {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
-export function useTilePlacement(groups: TileGroup[], initialSlots: SlotRows, lostFleet: boolean) {
+export function useTilePlacement(groups: TileGroup[], initialSlots: SlotRows, lostFleet: boolean, players: number) {
   const [slots, setSlots] = useState<SlotRows>(initialSlots);
   const [dragging, setDragging] = useState<TileRef | null>(null);
   const [selected, setSelected] = useState<TileRef | null>(null);
@@ -96,6 +96,18 @@ export function useTilePlacement(groups: TileGroup[], initialSlots: SlotRows, lo
         prev[g.key].map((id, i) => (id != null && (g.isLostFleet(id) || g.lostFleetOnlySlots.includes(i)) ? null : id)),
       ])));
     }
+  }
+
+  // Fewer players removes slots (e.g. Rebellion, Twilight's extra artifact
+  // sockets); their tiles go back to the lists.
+  const [prevPlayers, setPrevPlayers] = useState(players);
+  if (prevPlayers !== players) {
+    setPrevPlayers(players);
+    setSelected(null);
+    setSlots((prev) => Object.fromEntries(groups.map((g) => [
+      g.key,
+      prev[g.key].map((id, i) => (slotExists(g, i, players) ? id : null)),
+    ])));
   }
 
   // Once the ghosts are painted at their sources, measure return targets in the
@@ -149,6 +161,7 @@ export function useTilePlacement(groups: TileGroup[], initialSlots: SlotRows, lo
 
   return {
     lostFleet,
+    players,
     slots,
     available,
     selected,

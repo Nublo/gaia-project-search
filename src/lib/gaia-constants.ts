@@ -296,6 +296,52 @@ export const ARTIFACT_IMAGES: Record<ArtifactType, string> = {
   [ArtifactType.ORE_AND_KNOWLEDGE]: '13(+1o1k).png',
 };
 
+// Federation tokens, keyed by BGA fedTokenId (1-7 base game, 10-17 Lost Fleet).
+// board.bonusFedToken is the one on top of Terraforming; each Lost Fleet ship
+// holds one (lostFleet.ships[].availFedTokenId). 7 is the Gleens' own token.
+export const FEDERATION_TOKEN_NAMES: Record<number, string> = {
+  1: '12 VP',
+  2: '8 VP + 1 QIC',
+  3: '8 VP + 2 power tokens',
+  4: '7 VP + 2 Ore',
+  5: '7 VP + 6 Credits',
+  6: '6 VP + 2 Knowledge',
+  7: '1 Ore + 1 Knowledge + 2 Credits (Gleens)',
+  10: '12 VP (green)',
+  11: 'Gain a technology tile',
+  12: 'Build a mine at any range',
+  13: 'Build a mine with 3 terraforming steps',
+  14: '4 VP + 2 Ore + 1 QIC',
+  15: '8 VP + 8 Credits',
+  16: '4 VP + 4 Knowledge',
+  17: '7 VP + 2 power tokens in area III',
+};
+
+// Filenames in /public/federationTokens/
+export const FEDERATION_TOKEN_IMAGES: Record<number, string> = {
+  1: '1_12vp.webp',
+  2: '2_8vp1q.webp',
+  3: '3_8vp2t.webp',
+  4: '4_7vp2o.webp',
+  5: '5_7vp6c.webp',
+  6: '6_6vp2k.webp',
+  7: '7_1o1k2c.webp',
+  10: '10_12vpGreen.png',
+  11: '11_techTile.png',
+  12: '12_mineInfiniteRange.png',
+  13: '13_mineTerra3.png',
+  14: '14_4vp2o1q.png',
+  15: '15_8vp8c.png',
+  16: '16_4vp4k.png',
+  17: '17_7vp2tBowl3.png',
+};
+
+export const GLEENS_FEDERATION_TOKEN = 7;
+
+export function isLostFleetFederationToken(id: number): boolean {
+  return id >= 10;
+}
+
 export function getArtifactName(id: number): string {
   return ARTIFACT_NAMES[id as ArtifactType] || `Unknown Artifact (${id})`;
 }

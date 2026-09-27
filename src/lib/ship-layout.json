@@ -1,0 +1,100 @@
+{
+  "ships": [
+    {
+      "type": 15,
+      "name": "Eclipse",
+      "image": "15_Eclipse.png",
+      "width": 1164,
+      "height": 377,
+      "tech": {
+        "top": 18.83,
+        "left": 70.19,
+        "width": 16.32,
+        "height": 40.05
+      },
+      "federation": {
+        "top": 56.23,
+        "left": 63.32,
+        "width": 10.05,
+        "height": 31.83
+      }
+    },
+    {
+      "type": 16,
+      "name": "T.F. Mars",
+      "image": "16_T.F.Mars.png",
+      "width": 1162,
+      "height": 377,
+      "tech": {
+        "top": 26.79,
+        "left": 72.72,
+        "width": 16.44,
+        "height": 39.52
+      },
+      "federation": {
+        "top": 54.91,
+        "left": 63.25,
+        "width": 10.93,
+        "height": 36.6
+      }
+    },
+    {
+      "type": 17,
+      "name": "Rebellion",
+      "image": "17_Rebellion.png",
+      "width": 1158,
+      "height": 377,
+      "tech": {
+        "top": 29.18,
+        "left": 73.58,
+        "width": 16.75,
+        "height": 39.79
+      },
+      "federation": {
+        "top": 45.62,
+        "left": 63.9,
+        "width": 9.24,
+        "height": 34.48
+      }
+    },
+    {
+      "type": 18,
+      "name": "Twilight",
+      "image": "18_Twilight.png",
+      "width": 1155,
+      "height": 375,
+      "artifacts": [
+        {
+          "top": 14.13,
+          "left": 69.0,
+          "width": 11.52,
+          "height": 25.87
+        },
+        {
+          "top": 14.13,
+          "left": 85.11,
+          "width": 12.47,
+          "height": 25.87
+        },
+        {
+          "top": 56.0,
+          "left": 68.4,
+          "width": 12.12,
+          "height": 24.8
+        },
+        {
+          "top": 53.33,
+          "left": 84.85,
+          "width": 12.12,
+          "height": 26.67
+        }
+      ],
+      "federation": {
+        "top": 59.2,
+        "left": 57.58,
+        "width": 8.31,
+        "height": 33.07
+      }
+    }
+  ]
+}
