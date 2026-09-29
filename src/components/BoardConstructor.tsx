@@ -4,6 +4,7 @@ import { useState, type ReactNode } from 'react';
 import TechBoard from '@/components/TechBoard';
 import RoundScoringBoard from '@/components/RoundScoringBoard';
 import LostFleetShips from '@/components/LostFleetShips';
+import BoosterRow from '@/components/BoosterRow';
 import { TilePlacementProvider, useTilePlacement } from '@/components/tile-placement';
 import { BUILDER_GROUPS, PLAYER_COUNTS, slotsToParams, type SlotRows } from '@/lib/builder-groups';
 
@@ -88,6 +89,7 @@ export default function BoardConstructor({ initialSlots, initialLostFleet, initi
           <TechBoard lostFleet={lostFleet} />
           <RoundScoringBoard lostFleet={lostFleet} />
           {lostFleet && <LostFleetShips players={players} />}
+          <BoosterRow players={players} lostFleet={lostFleet} />
         </div>
       </TilePlacementProvider>
     </>

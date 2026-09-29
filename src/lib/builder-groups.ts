@@ -21,6 +21,9 @@ import {
   isLostFleetStandardTech,
   isLostFleetAdvancedTech,
   isLostFleetRoundScoring,
+  BOOSTER_NAMES,
+  BOOSTER_IMAGES,
+  isLostFleetBooster,
 } from '@/lib/gaia-constants';
 import techLayout from '@/lib/tech-board-layout.json';
 import roundLayout from '@/lib/round-board-layout.json';
@@ -48,6 +51,9 @@ export interface TileGroup {
   lostFleetOnlySlots: number[]; // slots that only exist in Lost Fleet mode
   // Slots that only exist at some player counts (default: all of them).
   slotExists?: (slotIdx: number, players: number) => boolean;
+  // Slot order doesn't matter (boosters): clicking a list tile places it in
+  // the first free slot; once they're all taken, it's selected as usual.
+  autoPlace?: boolean;
   tileAspect: string; // list tile aspect class, e.g. 'aspect-[150/116]'
 }
 
@@ -183,6 +189,25 @@ export const ARTIFACT_GROUP: TileGroup = {
   tileAspect: 'aspect-[166/127]',
 };
 
+// A game uses players + 3 boosters (verified on BGA logs for 2-4 players, with
+// and without Lost Fleet).
+export const boosterCount = (players: number) => players + 3;
+
+export const BOOSTER_GROUP: TileGroup = {
+  key: 'boosters',
+  param: 'bst',
+  title: 'Boosters',
+  ids: sortedIds(BOOSTER_NAMES),
+  labels: BOOSTER_NAMES,
+  imageSrc: (id) => `/boosters/${BOOSTER_IMAGES[id]}`,
+  isLostFleet: isLostFleetBooster,
+  slotCount: boosterCount(Math.max(...PLAYER_COUNTS)),
+  lostFleetOnlySlots: [],
+  slotExists: (slotIdx, players) => slotIdx < boosterCount(players),
+  autoPlace: true,
+  tileAspect: 'aspect-[116/353]',
+};
+
 export const BUILDER_GROUPS: TileGroup[] = [
   STANDARD_GROUP,
   ADVANCED_GROUP,
@@ -192,6 +217,7 @@ export const BUILDER_GROUPS: TileGroup[] = [
   SHIP_TECH_GROUP,
   SHIP_FEDERATION_GROUP,
   ARTIFACT_GROUP,
+  BOOSTER_GROUP,
 ];
 
 export function slotExists(g: TileGroup, slotIdx: number, players: number): boolean {

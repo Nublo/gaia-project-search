@@ -61,6 +61,10 @@ function findListTile(group: string, tileId: number) {
   return document.querySelector(`div[data-tile="${group}-${tileId}"]`);
 }
 
+function findSlot(group: string, slotIdx: number) {
+  return document.querySelector<HTMLElement>(`div[data-slot="${group}-${slotIdx}"]`);
+}
+
 function prefersReducedMotion() {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
@@ -151,6 +155,36 @@ export function useTilePlacement(groups: TileGroup[], initialSlots: SlotRows, lo
     setSlots((prev) => ({ ...prev, [tile.group]: withTilePlaced(prev[tile.group], tile, slotIdx) }));
   }
 
+  // Flies a list tile into slotIdx; a tile already there flies back to the list.
+  function flyToSlot(tile: TileRef, slotIdx: number, target: Element, rotate?: number) {
+    const source = findListTile(tile.group, tile.tileId);
+    if (!source || prefersReducedMotion()) {
+      placeTile(tile, slotIdx);
+      return;
+    }
+    const slotGeometry = geometryOf(target, rotate);
+    const next: Flight[] = [{ ...tile, mode: 'place', toSlot: slotIdx, from: geometryOf(source), to: slotGeometry }];
+    const displaced = slots[tile.group][slotIdx];
+    if (displaced != null) {
+      removeFromSlot(tile.group, slotIdx);
+      next.push({ group: tile.group, tileId: displaced, mode: 'return', from: slotGeometry });
+    }
+    setFlights(next);
+  }
+
+  // First empty slot of an autoPlace group that's in play and rendered.
+  function freeSlotFor(group: string): { index: number; el: HTMLElement } | null {
+    const g = groupByKey[group];
+    if (!g.autoPlace) return null;
+    for (let i = 0; i < slots[group].length; i++) {
+      if (slots[group][i] != null || !slotExists(g, i, players)) continue;
+      if (!lostFleet && g.lostFleetOnlySlots.includes(i)) continue;
+      const el = findSlot(group, i);
+      if (el) return { index: i, el };
+    }
+    return null;
+  }
+
   function removeFromSlot(group: string, slotIdx: number) {
     setSlots((prev) => {
       const next = [...prev[group]];
@@ -175,8 +209,15 @@ export function useTilePlacement(groups: TileGroup[], initialSlots: SlotRows, lo
 
     // ---- Click to move: click a list tile to select it, then click a slot ----
 
+    // autoPlace groups skip selection while they have a free slot.
     toggleSelect(tile: TileRef) {
       if (flights.length > 0) return;
+      const free = freeSlotFor(tile.group);
+      if (free) {
+        setSelected(null);
+        flyToSlot(tile, free.index, free.el);
+        return;
+      }
       setSelected(selected?.group === tile.group && selected.tileId === tile.tileId ? null : tile);
     },
 
@@ -184,21 +225,7 @@ export function useTilePlacement(groups: TileGroup[], initialSlots: SlotRows, lo
     moveSelectedTo(slotIdx: number, target: Element, rotate?: number) {
       if (!selected || flights.length > 0) return;
       setSelected(null);
-      const source = findListTile(selected.group, selected.tileId);
-      if (!source || prefersReducedMotion()) {
-        placeTile(selected, slotIdx);
-        return;
-      }
-      const slotGeometry = geometryOf(target, rotate);
-      const next: Flight[] = [
-        { ...selected, mode: 'place', toSlot: slotIdx, from: geometryOf(source), to: slotGeometry },
-      ];
-      const displaced = slots[selected.group][slotIdx];
-      if (displaced != null) {
-        removeFromSlot(selected.group, slotIdx);
-        next.push({ group: selected.group, tileId: displaced, mode: 'return', from: slotGeometry });
-      }
-      setFlights(next);
+      flyToSlot(selected, slotIdx, target, rotate);
     },
 
     // Sends a placed tile straight back to its list.
@@ -263,19 +290,33 @@ export function TilePlacementProvider({ placement, children }: { placement: Tile
 
 const selectedRing = 'ring-2 ring-blue-500 ring-offset-1';
 
-// A group's tiles not yet on a board — 2 columns.
-export function TileList({ groupKey }: { groupKey: string }) {
+// A group's tiles not yet on a board — a 2 column sidebar by default; tall
+// tiles (boosters) pass their own layout. `filter` splits a group over several
+// lists (e.g. base and Lost Fleet boosters on either side of their slots).
+export function TileList({
+  groupKey,
+  title,
+  filter,
+  className = 'w-full md:w-44',
+  gridClassName = 'grid-cols-2',
+}: {
+  groupKey: string;
+  title?: string; // defaults to the group's title
+  filter?: (tileId: number) => boolean;
+  className?: string; // width classes
+  gridClassName?: string; // grid layout classes (full literal Tailwind classes)
+}) {
   const p = usePlacement();
   const g = p.group(groupKey);
-  const tiles = p.available[groupKey];
+  const tiles = filter ? p.available[groupKey].filter(filter) : p.available[groupKey];
   return (
     <div
-      className="w-full md:w-44 shrink-0 p-3 bg-gray-50 rounded border border-gray-200"
+      className={`${className} shrink-0 p-3 bg-gray-50 rounded border border-gray-200`}
       onDragOver={(e) => e.preventDefault()}
       onDrop={p.dropOnList(groupKey)}
     >
-      <h5 className="text-xs font-semibold text-gray-600 mb-2 uppercase">{g.title}</h5>
-      <div className="grid grid-cols-2 gap-2">
+      <h5 className="text-xs font-semibold text-gray-600 mb-2 uppercase">{title ?? g.title}</h5>
+      <div className={`grid ${gridClassName} gap-2`}>
         {tiles.map((id) => (
           <div
             key={id}
@@ -289,7 +330,7 @@ export function TileList({ groupKey }: { groupKey: string }) {
             <Image src={p.imageSrc(groupKey, id)} alt={g.labels[id]} fill className="object-contain" />
           </div>
         ))}
-        {tiles.length === 0 && <p className="text-xs text-gray-400 col-span-2">All placed on the board</p>}
+        {tiles.length === 0 && <p className="text-xs text-gray-400 col-span-full">All placed on the board</p>}
       </div>
     </div>
   );
@@ -345,6 +386,7 @@ export function BoardSurface({
         return (
           <div
             key={`${group}-${index}`}
+            data-slot={`${group}-${index}`}
             onDragOver={(e) => e.preventDefault()}
             onDrop={p.dropOnSlot(group, index)}
             onClick={(e) => { if (isTarget) p.moveSelectedTo(index, e.currentTarget, rect.rotate); }}

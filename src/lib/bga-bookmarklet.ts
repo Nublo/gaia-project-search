@@ -10,7 +10,9 @@
  * `shp` slot (type - 15); Twilight's `availArtifacts` (0 = empty socket) to
  * `art`, its `availFedTokenId` to `shf` (same slot numbering, Twilight = 3).
  * `board.bonusFedToken` (top of Terraforming) goes to `fed`. Player count
- * comes from `gamedatas.playerList`.
+ * comes from `gamedatas.playerList`. Boosters go to `bst`: `board.availBoosters`
+ * holds all players + 3 on a replay's initial state, but only the untaken ones
+ * on a live game, so each player's held `boosterId` is added back.
  */
 
 const NOT_A_GAME_MESSAGE =
@@ -39,6 +41,13 @@ if (board.bonusFedToken) params.append('fed', '0:' + board.bonusFedToken);
   if (ship.availTech) params.append('shp', (ship.type - 15) + ':' + ship.availTech);
   (ship.availArtifacts || []).forEach(function (id, i) { if (id) params.append('art', i + ':' + id); });
 });
+var boosters = (board.availBoosters || []).map(Number);
+var gamePlayers = ui.gamedatas.players || {};
+Object.keys(gamePlayers).forEach(function (pid) {
+  var held = Number(gamePlayers[pid] && gamePlayers[pid].boosterId);
+  if (held && boosters.indexOf(held) < 0) boosters.push(held);
+});
+boosters.filter(Boolean).forEach(function (id, i) { params.append('bst', i + ':' + id); });
 if (board.config && board.config.lostFleet) params.set('lf', '1');
 window.open(${JSON.stringify(builderUrl)} + '?' + params.toString(), '_blank');
 `;

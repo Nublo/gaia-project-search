@@ -89,6 +89,33 @@ describe('buildBookmarklet', () => {
     expect(url.searchParams.getAll('shf')).toEqual(['3:10', '0:14', '1:15', '2:11']);
   });
 
+  it('imports boosters from a replay: availBoosters holds all players + 3', () => {
+    // Replay of table 919791132 (2 players, Lost Fleet), initial state
+    const { open } = run({
+      game_name: 'gaiaproject',
+      gamedatas: {
+        playerList: [94420974, 93630648],
+        players: { 93630648: { boosterId: 0 }, 94420974: { boosterId: 0 } },
+        board: { techs: [8, 3, 1, 7, 9, 4, 5, 2, 6], availBoosters: [11, 7, 10, 3, 12], config: { lostFleet: 1 } },
+      },
+    });
+    const url = new URL(open.mock.calls[0][0]);
+    expect(url.searchParams.getAll('bst')).toEqual(['0:11', '1:7', '2:10', '3:3', '4:12']);
+  });
+
+  it('adds boosters held by players on a live game page', () => {
+    const { open } = run({
+      game_name: 'gaiaproject',
+      gamedatas: {
+        playerList: [1, 2, 3],
+        players: { 1: { boosterId: 4 }, 2: { boosterId: '9' }, 3: { boosterId: 0 } },
+        board: { techs: [1], availBoosters: [2, 6, 8, 1, 5] },
+      },
+    });
+    const url = new URL(open.mock.calls[0][0]);
+    expect(url.searchParams.getAll('bst')).toEqual(['0:2', '1:6', '2:8', '3:1', '4:5', '5:4', '6:9']);
+  });
+
   it('skips empty slots', () => {
     const { open } = run({ game_name: 'gaiaproject', gamedatas: { board: { techs: [3, 4], advTechs: [0, 19, null] } } });
     const url = new URL(open.mock.calls[0][0]);

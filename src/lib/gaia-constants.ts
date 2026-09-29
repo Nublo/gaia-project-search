@@ -342,6 +342,48 @@ export function isLostFleetFederationToken(id: number): boolean {
   return id >= 10;
 }
 
+// Round boosters, keyed by BGA boosterId (1-10 base game, 11-14 Lost Fleet).
+// A game uses players + 3 of them: board.availBoosters on a replay's initial
+// state, plus players[].boosterId once they've been taken.
+export const BOOSTER_NAMES: Record<number, string> = {
+  1: '1 terraforming step + 2 Credits',
+  2: '+3 range + charge 2 power',
+  3: '1 Ore + 1 Knowledge',
+  4: '2 power tokens + 1 Ore',
+  5: '2 Credits + 1 QIC',
+  6: 'Pass: 1 VP per Mine; +1 Ore',
+  7: 'Pass: 2 VP per Trading Station; +1 Ore',
+  8: 'Pass: 3 VP per Research Lab; +1 Knowledge',
+  9: 'Pass: 4 VP per Planetary Institute / Academy; +4 power',
+  10: 'Pass: 1 VP per Gaia planet; +4 Credits',
+  11: '3 VP per Gaiaformer',
+  12: '1 VP per planet type + 1 Ore',
+  13: '2 VP per deep space sector + 3 Credits',
+  14: 'Instant Gaia + charge 2 power',
+};
+
+// Filenames in /public/boosters/
+export const BOOSTER_IMAGES: Record<number, string> = {
+  1: '1_dig2c.webp',
+  2: '2_+3nav2charge.webp',
+  3: '3_1o1k.webp',
+  4: '4_2t1o.webp',
+  5: '5_2c1q.webp',
+  6: '6_1vpMine1o.webp',
+  7: '7_2vpTS1o.webp',
+  8: '8_3vpLab1k.webp',
+  9: '9_4vpBigBuildings4charge.webp',
+  10: '10_1vpGaia4c.webp',
+  11: '11_3vpGaiaformer.png',
+  12: '12_1vpPlanetType1o.png',
+  13: '13_2vpDeepSpace3c.png',
+  14: '14_instanstGaiaCharge2.png',
+};
+
+export function isLostFleetBooster(id: number): boolean {
+  return id >= 11;
+}
+
 export function getArtifactName(id: number): string {
   return ARTIFACT_NAMES[id as ArtifactType] || `Unknown Artifact (${id})`;
 }
