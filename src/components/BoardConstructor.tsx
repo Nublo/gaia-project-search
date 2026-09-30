@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
 import TechBoard from '@/components/TechBoard';
 import RoundScoringBoard from '@/components/RoundScoringBoard';
 import LostFleetShips from '@/components/LostFleetShips';
@@ -9,13 +10,12 @@ import GalaxyMap from '@/components/GalaxyMap';
 import FactionPicker from '@/components/FactionPicker';
 import { fitRaces } from '@/lib/builder-factions';
 import { TilePlacementProvider, useTilePlacement } from '@/components/tile-placement';
-import { BUILDER_GROUPS, PLAYER_COUNTS, slotsToParams, type SlotRows } from '@/lib/builder-groups';
+import { BUILDER_GROUPS, PLAYER_COUNTS, type SlotRows } from '@/lib/builder-groups';
+import { setupToQuery, validateSetup } from '@/lib/builder-params';
 import {
   defaultLargeMap,
   fitPlanets,
-  hasMapSizeChoice,
   mapLayoutKey,
-  planetsToParams,
   samePlanets,
   samplePlanets,
   type PlanetMap,
@@ -45,6 +45,7 @@ export default function BoardConstructor({
   initialRaces,
   children,
 }: Props) {
+  const router = useRouter();
   const [lostFleet, setLostFleet] = useState(initialLostFleet);
   const [players, setPlayers] = useState(initialPlayers);
   const placement = useTilePlacement(BUILDER_GROUPS, initialSlots, lostFleet, players);
@@ -84,18 +85,29 @@ export default function BoardConstructor({
     setLargeMap(defaultLargeMap(n));
   }
 
+  // Saves the setup into this page's URL (so Back from /game-setup returns to
+  // it) and returns the query string.
+  function saveToUrl(): string {
+    const qs = setupToQuery({ players, lostFleet, slots: placement.slots, planets, largeMap, vpRequirement, races });
+    window.history.replaceState(null, '', `${window.location.pathname}?${qs}`);
+    return qs;
+  }
+
+  // /game-setup only opens for a complete setup; otherwise the problems are
+  // listed under the header (live, so they clear as they get fixed).
+  const [showProblems, setShowProblems] = useState(false);
+  const problems = validateSetup({ players, lostFleet, slots: placement.slots, races, planets });
+
+  function viewSetup() {
+    if (problems.length > 0) {
+      setShowProblems(true);
+      return;
+    }
+    router.push(`/game-setup?${saveToUrl()}`);
+  }
+
   function generateLink() {
-    const params = new URLSearchParams();
-    params.set('p', String(players));
-    if (lostFleet) params.set('lf', '1');
-    if (lostFleet && vpRequirement) params.set('xvp', '1');
-    races.forEach((id) => params.append('rc', String(id)));
-    slotsToParams(BUILDER_GROUPS, placement.slots, params);
-    if (hasMapSizeChoice(players, lostFleet)) params.set('ms', largeMap ? 'l' : 's');
-    planetsToParams(planets, layoutKey, params);
-    const qs = params.toString();
-    const url = `${window.location.origin}${window.location.pathname}${qs ? `?${qs}` : ''}`;
-    window.history.replaceState(null, '', url);
+    const url = `${window.location.origin}${window.location.pathname}?${saveToUrl()}`;
     navigator.clipboard?.writeText(url).then(
       () => {
         setCopied(true);
@@ -143,8 +155,38 @@ export default function BoardConstructor({
           >
             {copied ? 'Link copied!' : 'Generate link'}
           </button>
+          <button
+            type="button"
+            onClick={viewSetup}
+            className="text-sm font-semibold px-4 py-2 rounded border border-blue-600 text-blue-600 hover:bg-blue-50 transition-colors"
+          >
+            View setup
+          </button>
         </div>
       </div>
+
+      {showProblems && problems.length > 0 && (
+        <div role="alert" className="w-full max-w-6xl mx-auto mb-4 p-4 rounded-lg border border-red-200 bg-red-50">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h4 className="text-sm font-semibold text-red-800">The setup isn&apos;t complete yet</h4>
+              <ul className="mt-1 text-sm text-red-700 list-disc list-inside space-y-0.5">
+                {problems.map((p) => (
+                  <li key={p}>{p}</li>
+                ))}
+              </ul>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowProblems(false)}
+              aria-label="Dismiss"
+              className="shrink-0 text-red-400 hover:text-red-700 text-lg leading-none"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
 
       {children}
 

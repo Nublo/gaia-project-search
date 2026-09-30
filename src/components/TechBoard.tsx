@@ -10,8 +10,32 @@ const SLOTS: SurfaceSlot[] = [
   { group: TERRA_FEDERATION_GROUP.key, index: 0, rect: TECH_LAYOUT.terraformingFederation, idleBorder: 'border-white/60' },
 ];
 
-export default function TechBoard({ lostFleet }: { lostFleet: boolean }) {
+// The board with its tiles, shared by /builder and the read-only /game-setup view.
+export function TechBoardSurface({ lostFleet, className = '' }: { lostFleet: boolean; className?: string }) {
   const colonize = TECH_LAYOUT.lostFleetColonizeTile;
+  return (
+    <BoardSurface
+      image="/techboard/techBoard.webp"
+      alt="Gaia Project research board"
+      aspect="aspect-[1220/1311]"
+      className={`rounded overflow-hidden ${className}`}
+      slots={SLOTS}
+      overlay={
+        // Lost Fleet has no QIC actions — its colonize tile covers them on the board.
+        lostFleet && (
+          <div
+            style={{ top: `${colonize.top}%`, left: `${colonize.left}%`, width: `${colonize.width}%`, height: `${colonize.height}%` }}
+            className="absolute pointer-events-none"
+          >
+            <Image src="/techboard/colonizeTile.webp" alt="Lost Fleet colonize tile" fill className="object-fill" />
+          </div>
+        )
+      }
+    />
+  );
+}
+
+export default function TechBoard({ lostFleet }: { lostFleet: boolean }) {
   return (
     <div className="w-full max-w-6xl mx-auto p-6 bg-white rounded-lg shadow-md">
       <h4 className="text-xs font-semibold text-gray-600 uppercase mb-2">Tech board</h4>
@@ -23,24 +47,7 @@ export default function TechBoard({ lostFleet }: { lostFleet: boolean }) {
           <TileList groupKey={TERRA_FEDERATION_GROUP.key} />
         </div>
         <div className="flex-1 min-w-0 w-full flex justify-center">
-          <BoardSurface
-            image="/techboard/techBoard.webp"
-            alt="Gaia Project research board"
-            aspect="aspect-[1220/1311]"
-            className="w-full md:w-[70%] rounded overflow-hidden"
-            slots={SLOTS}
-            overlay={
-              // Lost Fleet has no QIC actions — its colonize tile covers them on the board.
-              lostFleet && (
-                <div
-                  style={{ top: `${colonize.top}%`, left: `${colonize.left}%`, width: `${colonize.width}%`, height: `${colonize.height}%` }}
-                  className="absolute pointer-events-none"
-                >
-                  <Image src="/techboard/colonizeTile.webp" alt="Lost Fleet colonize tile" fill className="object-fill" />
-                </div>
-              )
-            }
-          />
+          <TechBoardSurface lostFleet={lostFleet} className="w-full md:w-[70%]" />
         </div>
         <TileList groupKey="advanced" />
       </div>

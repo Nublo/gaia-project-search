@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import Image from 'next/image';
 import { PLANET_IMAGES, PLANET_NAMES } from '@/lib/gaia-constants';
 import {
@@ -124,119 +124,157 @@ export default function GalaxyMap({ layoutKey, planets, onChange, lostFleet, pla
         Click a hex to place or change a planet; right-click a planet to remove it.
       </p>
 
-      <div className="relative mx-auto rounded bg-[#010203]" style={{ maxWidth: 900 }}>
-        <div className="relative w-full" style={{ aspectRatio: `${geometry.width} / ${geometry.height}` }}>
-          {geometry.sectors.map((s, i) => (
-            <div key={`s${i}`} className="absolute pointer-events-none" style={boxStyle(s, geometry)}>
-              <div className="absolute inset-0" style={{ clipPath: SECTOR_CLIP }}>
-                <Image src="/map/blankHex.webp" alt="" fill sizes="300px" className="object-fill" />
-              </div>
-              <svg viewBox={`0 0 ${SECTOR_W} ${SECTOR_H}`} preserveAspectRatio="none" className="absolute inset-0 w-full h-full">
-                <path d={SECTOR_OUTLINE} stroke="#4a68a6" strokeWidth={6} fill="none" />
-              </svg>
+      <MapCanvas
+        layoutKey={layoutKey}
+        planets={planets}
+        picking={picking}
+        onHexClick={(h) => setPicking(picking?.q === h.q && picking.r === h.r ? null : h)}
+        onHexRightClick={(h) => {
+          setPicking(null);
+          if (planets[hexKey(h.q, h.r)] != null) setPlanet(h, null);
+        }}
+        className="max-w-[900px]"
+      >
+        {picking && (
+          <div
+            ref={pickerRef}
+            className="absolute z-20 p-2 rounded-lg bg-white shadow-lg border border-gray-200"
+            style={pickerStyle}
+          >
+            <div className="grid grid-cols-5 gap-1">
+              {choices.map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  title={PLANET_NAMES[id]}
+                  onClick={() => {
+                    setPlanet(picking, id);
+                    setPicking(null);
+                  }}
+                  className={`relative aspect-square rounded hover:bg-blue-50 ${pickedPlanet === id ? 'ring-2 ring-blue-500' : ''}`}
+                >
+                  <Image src={`/map/planets/${PLANET_IMAGES[id]}`} alt={PLANET_NAMES[id]} fill sizes="44px" className="object-contain p-0.5" />
+                </button>
+              ))}
             </div>
-          ))}
-          {geometry.pieces.map((p, i) => (
-            // A single hex cut from the middle of the sector art.
-            <div
-              key={`p${i}`}
-              className="absolute pointer-events-none overflow-hidden"
-              style={{ ...boxStyle(p, geometry), clipPath: HEX_CLIP }}
-            >
-              <div
-                className="absolute"
-                style={{
-                  width: `${(SECTOR_W / HEX_W) * 100}%`,
-                  height: `${(SECTOR_H / HEX_H) * 100}%`,
-                  left: `${(-(SECTOR_W - HEX_W) / 2 / HEX_W) * 100}%`,
-                  top: `${(-(SECTOR_H - HEX_H) / 2 / HEX_H) * 100}%`,
+            {pickedPlanet != null && (
+              <button
+                type="button"
+                onClick={() => {
+                  setPlanet(picking, null);
+                  setPicking(null);
                 }}
+                className="mt-2 w-full text-xs font-semibold py-1 rounded text-red-600 hover:bg-red-50"
               >
-                <Image src="/map/blankHex.webp" alt="" fill sizes="300px" className="object-fill" />
-              </div>
+                Remove planet
+              </button>
+            )}
+          </div>
+        )}
+      </MapCanvas>
+    </div>
+  );
+}
+
+// The map drawing alone: sectors, Lost Fleet pieces, hex outlines and planets.
+// With onHexClick the hexes become clickable (the /builder editor); without,
+// it's the read-only /game-setup view. children render on top (the picker).
+export function MapCanvas({
+  layoutKey,
+  planets,
+  picking = null,
+  onHexClick,
+  onHexRightClick,
+  className = '',
+  children,
+}: {
+  layoutKey: MapLayoutKey;
+  planets: PlanetMap;
+  picking?: MapHex | null;
+  onHexClick?: (hex: MapHex) => void;
+  onHexRightClick?: (hex: MapHex) => void;
+  className?: string; // width classes
+  children?: ReactNode;
+}) {
+  const geometry = useMemo(() => mapGeometry(layoutKey), [layoutKey]);
+  return (
+    <div className={`relative mx-auto rounded bg-[#010203] ${className}`}>
+      <div className="relative w-full" style={{ aspectRatio: `${geometry.width} / ${geometry.height}` }}>
+        {geometry.sectors.map((s, i) => (
+          <div key={`s${i}`} className="absolute pointer-events-none" style={boxStyle(s, geometry)}>
+            <div className="absolute inset-0" style={{ clipPath: SECTOR_CLIP }}>
+              <Image src="/map/blankHex.webp" alt="" fill sizes="300px" className="object-fill" />
             </div>
-          ))}
-          {geometry.hexes.map((h) => {
-            const planet = planets[hexKey(h.q, h.r)];
-            const isPicking = picking?.q === h.q && picking.r === h.r;
-            return (
-              <div key={hexKey(h.q, h.r)} className="absolute pointer-events-none" style={boxStyle(h, geometry)}>
-                <svg viewBox={`0 0 ${HEX_W} ${HEX_H}`} className="absolute inset-0 w-full h-full overflow-visible">
-                  <path
-                    d={HEX_OUTLINE}
-                    stroke={isPicking ? '#ffaa00' : '#5a88b6'}
-                    strokeWidth={isPicking ? 5.5 : 1.5}
-                    fill={isPicking ? '#ff880050' : 'none'}
-                  />
-                </svg>
-                {planet != null && (
-                  <div
-                    className="absolute"
-                    style={{
-                      width: `${(PLANET_SIZE / HEX_W) * 100}%`,
-                      height: `${(PLANET_SIZE / HEX_H) * 100}%`,
-                      left: `${((HEX_W - PLANET_SIZE) / 2 / HEX_W) * 100}%`,
-                      top: `${((HEX_H - PLANET_SIZE) / 2 / HEX_H) * 100}%`,
-                    }}
-                  >
-                    <Image src={`/map/planets/${PLANET_IMAGES[planet]}`} alt={PLANET_NAMES[planet]} fill sizes="80px" className="object-contain" />
-                  </div>
-                )}
-                {/* Hex-shaped hit area: bounding boxes of neighbouring hexes overlap. */}
+            <svg viewBox={`0 0 ${SECTOR_W} ${SECTOR_H}`} preserveAspectRatio="none" className="absolute inset-0 w-full h-full">
+              <path d={SECTOR_OUTLINE} stroke="#4a68a6" strokeWidth={6} fill="none" />
+            </svg>
+          </div>
+        ))}
+        {geometry.pieces.map((p, i) => (
+          // A single hex cut from the middle of the sector art.
+          <div
+            key={`p${i}`}
+            className="absolute pointer-events-none overflow-hidden"
+            style={{ ...boxStyle(p, geometry), clipPath: HEX_CLIP }}
+          >
+            <div
+              className="absolute"
+              style={{
+                width: `${(SECTOR_W / HEX_W) * 100}%`,
+                height: `${(SECTOR_H / HEX_H) * 100}%`,
+                left: `${(-(SECTOR_W - HEX_W) / 2 / HEX_W) * 100}%`,
+                top: `${(-(SECTOR_H - HEX_H) / 2 / HEX_H) * 100}%`,
+              }}
+            >
+              <Image src="/map/blankHex.webp" alt="" fill sizes="300px" className="object-fill" />
+            </div>
+          </div>
+        ))}
+        {geometry.hexes.map((h) => {
+          const planet = planets[hexKey(h.q, h.r)];
+          const isPicking = picking?.q === h.q && picking?.r === h.r;
+          return (
+            <div key={hexKey(h.q, h.r)} className="absolute pointer-events-none" style={boxStyle(h, geometry)}>
+              <svg viewBox={`0 0 ${HEX_W} ${HEX_H}`} className="absolute inset-0 w-full h-full overflow-visible">
+                <path
+                  d={HEX_OUTLINE}
+                  stroke={isPicking ? '#ffaa00' : '#5a88b6'}
+                  strokeWidth={isPicking ? 5.5 : 1.5}
+                  fill={isPicking ? '#ff880050' : 'none'}
+                />
+              </svg>
+              {planet != null && (
+                <div
+                  className="absolute"
+                  style={{
+                    width: `${(PLANET_SIZE / HEX_W) * 100}%`,
+                    height: `${(PLANET_SIZE / HEX_H) * 100}%`,
+                    left: `${((HEX_W - PLANET_SIZE) / 2 / HEX_W) * 100}%`,
+                    top: `${((HEX_H - PLANET_SIZE) / 2 / HEX_H) * 100}%`,
+                  }}
+                >
+                  <Image src={`/map/planets/${PLANET_IMAGES[planet]}`} alt={PLANET_NAMES[planet]} fill sizes="80px" className="object-contain" />
+                </div>
+              )}
+              {onHexClick && (
+                // Hex-shaped hit area: bounding boxes of neighbouring hexes overlap.
                 <button
                   type="button"
                   data-hex
                   title={planet != null ? `${PLANET_NAMES[planet]} — right-click to remove` : 'Place a planet'}
-                  onClick={() => setPicking(isPicking ? null : h)}
+                  onClick={() => onHexClick(h)}
                   onContextMenu={(e) => {
                     e.preventDefault();
-                    setPicking(null);
-                    if (planet != null) setPlanet(h, null);
+                    onHexRightClick?.(h);
                   }}
                   className="absolute inset-0 pointer-events-auto cursor-pointer hover:bg-white/15"
                   style={{ clipPath: HEX_CLIP }}
                 />
-              </div>
-            );
-          })}
-
-          {picking && (
-            <div
-              ref={pickerRef}
-              className="absolute z-20 p-2 rounded-lg bg-white shadow-lg border border-gray-200"
-              style={pickerStyle}
-            >
-              <div className="grid grid-cols-5 gap-1">
-                {choices.map((id) => (
-                  <button
-                    key={id}
-                    type="button"
-                    title={PLANET_NAMES[id]}
-                    onClick={() => {
-                      setPlanet(picking, id);
-                      setPicking(null);
-                    }}
-                    className={`relative aspect-square rounded hover:bg-blue-50 ${pickedPlanet === id ? 'ring-2 ring-blue-500' : ''}`}
-                  >
-                    <Image src={`/map/planets/${PLANET_IMAGES[id]}`} alt={PLANET_NAMES[id]} fill sizes="44px" className="object-contain p-0.5" />
-                  </button>
-                ))}
-              </div>
-              {pickedPlanet != null && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPlanet(picking, null);
-                    setPicking(null);
-                  }}
-                  className="mt-2 w-full text-xs font-semibold py-1 rounded text-red-600 hover:bg-red-50"
-                >
-                  Remove planet
-                </button>
               )}
             </div>
-          )}
-        </div>
+          );
+        })}
+        {children}
       </div>
     </div>
   );

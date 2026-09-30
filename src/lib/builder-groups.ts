@@ -49,6 +49,7 @@ export interface TileGroup {
   isLostFleet: (id: number) => boolean;
   slotCount: number;
   lostFleetOnlySlots: number[]; // slots that only exist in Lost Fleet mode
+  lostFleetOnly?: boolean; // the whole group only exists in Lost Fleet mode (ships)
   // Slots that only exist at some player counts (default: all of them).
   slotExists?: (slotIdx: number, players: number) => boolean;
   // Slot order doesn't matter (boosters): clicking a list tile places it in
@@ -156,6 +157,7 @@ export const SHIP_FEDERATION_GROUP: TileGroup = {
   isLostFleet: () => true,
   slotCount: 4,
   lostFleetOnlySlots: [],
+  lostFleetOnly: true,
   slotExists: (slotIdx, players) => slotIdx !== REBELLION_SLOT || players > 2,
   tileAspect: 'aspect-[96/119]',
 };
@@ -170,6 +172,7 @@ export const SHIP_TECH_GROUP: TileGroup = {
   isLostFleet: () => true,
   slotCount: 3,
   lostFleetOnlySlots: [],
+  lostFleetOnly: true,
   slotExists: (slotIdx, players) => slotIdx !== REBELLION_SLOT || players > 2,
   tileAspect: 'aspect-[148/116]',
 };
@@ -185,6 +188,7 @@ export const ARTIFACT_GROUP: TileGroup = {
   isLostFleet: () => true,
   slotCount: 4,
   lostFleetOnlySlots: [],
+  lostFleetOnly: true,
   slotExists: (slotIdx, players) => slotIdx < players,
   tileAspect: 'aspect-[166/127]',
 };
@@ -222,6 +226,21 @@ export const BUILDER_GROUPS: TileGroup[] = [
 
 export function slotExists(g: TileGroup, slotIdx: number, players: number): boolean {
   return g.slotExists ? g.slotExists(slotIdx, players) : true;
+}
+
+// Lost Fleet ships in play: every ship with no tech screen (Twilight) or whose
+// tech slot exists at this player count (no Rebellion at 2 players). Ship
+// type = its planet id on the galaxy map.
+export function shipsInPlay(players: number): ShipLayout[] {
+  return SHIPS.filter((s) => !s.tech || slotExists(SHIP_TECH_GROUP, s.type - SHIP_TECH_BASE_TYPE, players));
+}
+
+// Slots of a group that are in play for this setup.
+export function slotsInPlay(g: TileGroup, players: number, lostFleet: boolean): number[] {
+  if (g.lostFleetOnly && !lostFleet) return [];
+  return Array.from({ length: g.slotCount }, (_, i) => i).filter(
+    (i) => slotExists(g, i, players) && (lostFleet || !g.lostFleetOnlySlots.includes(i))
+  );
 }
 
 export function parsePlayers(raw: string | string[] | undefined): number {

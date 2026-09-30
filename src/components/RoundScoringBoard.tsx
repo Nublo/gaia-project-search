@@ -33,8 +33,55 @@ interface Props {
   onVpRequirementChange: (vpRequirement: boolean) => void;
 }
 
-export default function RoundScoringBoard({ lostFleet, vpRequirement, onVpRequirementChange }: Props) {
+// The round board (plus the Lost Fleet extension) with its tiles, shared by
+// /builder and the read-only /game-setup view.
+export function RoundBoardSurface({
+  lostFleet,
+  vpRequirement,
+  className = '',
+}: {
+  lostFleet: boolean;
+  vpRequirement: boolean;
+  className?: string;
+}) {
   const ext = ROUND_LAYOUT.lostFleetExtension;
+  return (
+    <div className={className}>
+      <BoardSurface
+        image="/round-bonus/roundBoard.webp"
+        alt="Gaia Project scoring board"
+        aspect="aspect-[1068/1054]"
+        slots={ROUND_SLOTS}
+      />
+      {/* Percentage margins resolve against the parent's width, i.e. the round board's width. */}
+      {lostFleet && (
+        <BoardSurface
+          image="/round-bonus/roundBoardExt.webp"
+          alt="Lost Fleet scoring board extension"
+          aspect="aspect-[609/214]"
+          slots={EXTENSION_SLOTS}
+          className="@container"
+          style={{ width: `${ext.width}%`, marginLeft: `${ext.left}%`, marginTop: `-${ext.overlap}%` }}
+          overlay={
+            vpRequirement && (
+              // Covers the printed "3 ships" requirement, like BGA's #gpj-roundBoardExt-techReq.
+              <div className="absolute bg-black flex items-center justify-center" style={VP_REQUIREMENT_STYLE}>
+                <div className="relative h-full aspect-square">
+                  <Image src="/round-bonus/vp.png" alt="" fill sizes="40px" className="object-contain" />
+                  <span className="absolute inset-0 flex items-center justify-center font-bold text-white text-[3.2cqw] [text-shadow:0_0_2px_#000,0_0_2px_#000]">
+                    25
+                  </span>
+                </div>
+              </div>
+            )
+          }
+        />
+      )}
+    </div>
+  );
+}
+
+export default function RoundScoringBoard({ lostFleet, vpRequirement, onVpRequirementChange }: Props) {
   return (
     <div className="w-full max-w-6xl mx-auto p-6 bg-white rounded-lg shadow-md">
       <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
@@ -67,38 +114,7 @@ export default function RoundScoringBoard({ lostFleet, vpRequirement, onVpRequir
       <div className="flex flex-col md:flex-row gap-4 items-start">
         <TileList groupKey="rounds" />
         <div className="flex-1 min-w-0 w-full flex justify-center">
-          <div className="w-full md:w-[70%]">
-            <BoardSurface
-              image="/round-bonus/roundBoard.webp"
-              alt="Gaia Project scoring board"
-              aspect="aspect-[1068/1054]"
-              slots={ROUND_SLOTS}
-            />
-            {/* Percentage margins resolve against the parent's width, i.e. the round board's width. */}
-            {lostFleet && (
-              <BoardSurface
-                image="/round-bonus/roundBoardExt.webp"
-                alt="Lost Fleet scoring board extension"
-                aspect="aspect-[609/214]"
-                slots={EXTENSION_SLOTS}
-                className="@container"
-                style={{ width: `${ext.width}%`, marginLeft: `${ext.left}%`, marginTop: `-${ext.overlap}%` }}
-                overlay={
-                  vpRequirement && (
-                    // Covers the printed "3 ships" requirement, like BGA's #gpj-roundBoardExt-techReq.
-                    <div className="absolute bg-black flex items-center justify-center" style={VP_REQUIREMENT_STYLE}>
-                      <div className="relative h-full aspect-square">
-                        <Image src="/round-bonus/vp.png" alt="" fill sizes="40px" className="object-contain" />
-                        <span className="absolute inset-0 flex items-center justify-center font-bold text-white text-[3.2cqw] [text-shadow:0_0_2px_#000,0_0_2px_#000]">
-                          25
-                        </span>
-                      </div>
-                    </div>
-                  )
-                }
-              />
-            )}
-          </div>
+          <RoundBoardSurface lostFleet={lostFleet} vpRequirement={vpRequirement} className="w-full md:w-[70%]" />
         </div>
         <TileList groupKey="final" />
       </div>

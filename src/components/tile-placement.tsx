@@ -269,7 +269,9 @@ export function useTilePlacement(groups: TileGroup[], initialSlots: SlotRows, lo
   };
 }
 
-type TilePlacement = ReturnType<typeof useTilePlacement>;
+// readOnly (the /game-setup view) draws placed tiles only: no empty slot
+// outlines, no drag / click placement.
+type TilePlacement = ReturnType<typeof useTilePlacement> & { readOnly?: boolean };
 
 const PlacementContext = createContext<TilePlacement | null>(null);
 
@@ -279,9 +281,18 @@ function usePlacement(): TilePlacement {
   return placement;
 }
 
-export function TilePlacementProvider({ placement, children }: { placement: TilePlacement; children: ReactNode }) {
+export function TilePlacementProvider({
+  placement,
+  readOnly = false,
+  children,
+}: {
+  placement: ReturnType<typeof useTilePlacement>;
+  readOnly?: boolean;
+  children: ReactNode;
+}) {
+  const value = useMemo(() => ({ ...placement, readOnly }), [placement, readOnly]);
   return (
-    <PlacementContext.Provider value={placement}>
+    <PlacementContext.Provider value={value}>
       {children}
       <FlightLayer />
     </PlacementContext.Provider>
@@ -381,6 +392,15 @@ export function BoardSurface({
       {overlay}
       {slots.map(({ group, index, rect, idleBorder }) => {
         const tileId = p.slots[group][index];
+        if (p.readOnly) {
+          if (tileId == null) return null;
+          const tileLabel = p.group(group).labels[tileId];
+          return (
+            <div key={`${group}-${index}`} style={slotStyle(rect)} className="absolute" title={tileLabel}>
+              <Image src={p.imageSrc(group, tileId)} alt={tileLabel} fill className="object-contain" />
+            </div>
+          );
+        }
         const isTarget = p.selected?.group === group;
         const label = tileId != null ? p.group(group).labels[tileId] : '';
         return (

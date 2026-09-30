@@ -1,7 +1,7 @@
 'use client';
 
 import { BoardSurface, TileList, type SurfaceSlot } from '@/components/tile-placement';
-import { ARTIFACT_GROUP, SHIPS, SHIP_FEDERATION_GROUP, SHIP_TECH_BASE_TYPE, SHIP_TECH_GROUP, slotExists } from '@/lib/builder-groups';
+import { ARTIFACT_GROUP, SHIP_FEDERATION_GROUP, SHIP_TECH_BASE_TYPE, SHIP_TECH_GROUP, shipsInPlay, slotExists } from '@/lib/builder-groups';
 import type { ShipLayout } from '@/types/tech-board-layout';
 
 // Twilight first, then Eclipse, T.F. Mars, Rebellion — the order BGA shows them.
@@ -23,14 +23,34 @@ function shipSlots(ship: ShipLayout, players: number): SurfaceSlot[] {
   return slots;
 }
 
-// A ship is shown unless its tech slot doesn't exist at this player count
-// (Rebellion in 2 player games).
-function shipInPlay(ship: ShipLayout, players: number): boolean {
-  return !ship.tech || slotExists(SHIP_TECH_GROUP, ship.type - SHIP_TECH_BASE_TYPE, players);
+// The ships in play with their tiles, shared by /builder and the read-only /game-setup view.
+export function ShipBoards({ players, className = '' }: { players: number; className?: string }) {
+  const inPlay = shipsInPlay(players);
+  const ships = SHIP_ORDER.flatMap((type) => inPlay.filter((s) => s.type === type));
+  return (
+    <div className={`grid gap-4 lg:grid-cols-2 ${className}`}>
+      {ships.map((ship) => (
+        <BoardSurface
+          key={ship.type}
+          image={`/ships/${ship.image}`}
+          alt={ship.name}
+          aspect=""
+          style={{ aspectRatio: `${ship.width} / ${ship.height}` }}
+          className="@container rounded overflow-hidden"
+          slots={shipSlots(ship, players)}
+          overlay={
+            // The ship art has an empty name banner in its top-left corner.
+            <span className="absolute left-[1.5%] top-[2%] pointer-events-none font-bold uppercase tracking-wide text-white text-[2.2cqw]">
+              {ship.name}
+            </span>
+          }
+        />
+      ))}
+    </div>
+  );
 }
 
 export default function LostFleetShips({ players }: { players: number }) {
-  const ships = SHIP_ORDER.map((type) => SHIPS.find((s) => s.type === type)!).filter((s) => shipInPlay(s, players));
   return (
     <div className="w-full max-w-6xl mx-auto p-6 bg-white rounded-lg shadow-md">
       <h4 className="text-xs font-semibold text-gray-600 uppercase mb-2">Lost Fleet ships</h4>
@@ -45,25 +65,7 @@ export default function LostFleetShips({ players }: { players: number }) {
           <TileList groupKey={SHIP_TECH_GROUP.key} />
           <TileList groupKey={SHIP_FEDERATION_GROUP.key} />
         </div>
-        <div className="flex-1 min-w-0 w-full grid gap-4 lg:grid-cols-2">
-          {ships.map((ship) => (
-            <BoardSurface
-              key={ship.type}
-              image={`/ships/${ship.image}`}
-              alt={ship.name}
-              aspect=""
-              style={{ aspectRatio: `${ship.width} / ${ship.height}` }}
-              className="@container rounded overflow-hidden"
-              slots={shipSlots(ship, players)}
-              overlay={
-                // The ship art has an empty name banner in its top-left corner.
-                <span className="absolute left-[1.5%] top-[2%] pointer-events-none font-bold uppercase tracking-wide text-white text-[2.2cqw]">
-                  {ship.name}
-                </span>
-              }
-            />
-          ))}
-        </div>
+        <ShipBoards players={players} className="flex-1 min-w-0 w-full" />
         <TileList groupKey={ARTIFACT_GROUP.key} />
       </div>
     </div>

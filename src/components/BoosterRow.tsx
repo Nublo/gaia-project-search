@@ -23,9 +23,23 @@ function boosterSlots(count: number, rowWidth: number): SurfaceSlot[] {
   }));
 }
 
-export default function BoosterRow({ players, lostFleet }: { players: number; lostFleet: boolean }) {
+// The row of booster slots, shared by /builder and the read-only /game-setup
+// view. Fills its width up to the boosters' natural size, or all of it with `fill`.
+export function BoosterSlots({ players, fill = false, className = '' }: { players: number; fill?: boolean; className?: string }) {
   const count = boosterCount(players);
   const rowWidth = count * SLOT_W + (count - 1) * GAP;
+  return (
+    <BoardSurface
+      aspect=""
+      className={className}
+      style={{ aspectRatio: `${rowWidth} / ${SLOT_H}`, width: fill ? '100%' : `min(100%, ${rowWidth}px)` }}
+      slots={boosterSlots(count, rowWidth)}
+    />
+  );
+}
+
+export default function BoosterRow({ players, lostFleet }: { players: number; lostFleet: boolean }) {
+  const count = boosterCount(players);
   return (
     <div className="w-full max-w-6xl mx-auto p-6 bg-white rounded-lg shadow-md">
       <h4 className="text-xs font-semibold text-gray-600 uppercase mb-2">Boosters</h4>
@@ -42,11 +56,7 @@ export default function BoosterRow({ players, lostFleet }: { players: number; lo
           gridClassName={LIST_GRID}
         />
         <div className="flex-1 min-w-0 w-full flex justify-center">
-          <BoardSurface
-            aspect=""
-            style={{ aspectRatio: `${rowWidth} / ${SLOT_H}`, width: `min(100%, ${rowWidth}px)` }}
-            slots={boosterSlots(count, rowWidth)}
-          />
+          <BoosterSlots players={players} />
         </div>
         {lostFleet && (
           <TileList
