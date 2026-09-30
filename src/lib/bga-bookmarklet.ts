@@ -13,6 +13,9 @@
  * comes from `gamedatas.playerList`. Boosters go to `bst`: `board.availBoosters`
  * holds all players + 3 on a replay's initial state, but only the untaken ones
  * on a live game, so each player's held `boosterId` is added back.
+ * `gamedatas.map` ({q: {r: hex}}) gives the planets as `pl` = "q,r:planetType";
+ * its sector count (hexes with isTileCenter) tells base 3-4 player games' map
+ * size, sent as `ms` (10 sectors = 'l').
  */
 
 const NOT_A_GAME_MESSAGE =
@@ -48,7 +51,17 @@ Object.keys(gamePlayers).forEach(function (pid) {
   if (held && boosters.indexOf(held) < 0) boosters.push(held);
 });
 boosters.filter(Boolean).forEach(function (id, i) { params.append('bst', i + ':' + id); });
+var map = ui.gamedatas.map || {};
+var sectors = 0;
+Object.keys(map).forEach(function (q) {
+  Object.keys(map[q]).forEach(function (r) {
+    var hex = map[q][r];
+    if (hex.isTileCenter && Number(hex.tileNum) < 100) sectors++;
+    if (Number(hex.planetType)) params.append('pl', q + ',' + r + ':' + Number(hex.planetType));
+  });
+});
 if (board.config && board.config.lostFleet) params.set('lf', '1');
+else if (sectors && players > 2) params.set('ms', sectors >= 10 ? 'l' : 's');
 window.open(${JSON.stringify(builderUrl)} + '?' + params.toString(), '_blank');
 `;
 }

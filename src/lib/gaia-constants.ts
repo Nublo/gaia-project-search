@@ -384,6 +384,53 @@ export function isLostFleetBooster(id: number): boolean {
   return id >= 11;
 }
 
+// Map planets, keyed by BGA planetType (0 = empty space). Ids match BGA's
+// planets.png sprite (gpj-planetN). 15-18 are the Lost Fleet ships (= ship types).
+export const PLANET_NAMES: Record<number, string> = {
+  1: 'Terra (blue)',
+  2: 'Oxide (red)',
+  3: 'Volcanic (orange)',
+  4: 'Desert (yellow)',
+  5: 'Swamp (brown)',
+  6: 'Titanium (black)',
+  7: 'Ice (white)',
+  8: 'Gaia',
+  9: 'Transdim',
+  10: 'Lost Planet',
+  11: 'Asteroids',
+  12: 'Protoplanet',
+  15: 'Eclipse',
+  16: 'T.F. Mars',
+  17: 'Rebellion',
+  18: 'Twilight',
+};
+
+// Filenames in /public/map/planets/
+export const PLANET_IMAGES: Record<number, string> = {
+  1: '1_blue.webp',
+  2: '2_red.webp',
+  3: '3_orange.webp',
+  4: '4_yellow.webp',
+  5: '5_brown.webp',
+  6: '6_black.webp',
+  7: '7_white.webp',
+  8: '8_gaia.webp',
+  9: '9_unstable.webp',
+  10: '10_lost.webp',
+  11: '11_asteroid.png',
+  12: '12_proto.png',
+  15: '15_eclipse.png',
+  16: '16_tfmars.png',
+  17: '17_rebellion.png',
+  18: '18_twilight.png',
+};
+
+export const REBELLION_PLANET = 17;
+
+export function isLostFleetPlanet(id: number): boolean {
+  return id >= 11;
+}
+
 export function getArtifactName(id: number): string {
   return ARTIFACT_NAMES[id as ArtifactType] || `Unknown Artifact (${id})`;
 }

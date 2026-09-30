@@ -116,6 +116,21 @@ describe('buildBookmarklet', () => {
     expect(url.searchParams.getAll('bst')).toEqual(['0:2', '1:6', '2:8', '3:1', '4:5', '5:4', '6:9']);
   });
 
+  it('imports the map: planets and base game map size', () => {
+    const hex = (q: number, r: number, planetType: number, isTileCenter = 0, tileNum = 1) =>
+      ({ q, r, planetType, isTileCenter, tileNum, buildings: [], flag: 0 });
+    const centers = Array.from({ length: 10 }, (_, i) => hex(i, 5, 0, 1, i + 1));
+    const map: Record<string, Record<string, unknown>> = {};
+    for (const h of [hex(0, 0, 8), hex(-2, 3, 1), hex(1, 1, 0), ...centers]) (map[h.q] ??= {})[h.r] = h;
+    const { open } = run({
+      game_name: 'gaiaproject',
+      gamedatas: { playerList: [1, 2, 3], map, board: { techs: [1] } },
+    });
+    const url = new URL(open.mock.calls[0][0]);
+    expect(url.searchParams.getAll('pl').sort()).toEqual(['-2,3:1', '0,0:8']);
+    expect(url.searchParams.get('ms')).toBe('l');
+  });
+
   it('skips empty slots', () => {
     const { open } = run({ game_name: 'gaiaproject', gamedatas: { board: { techs: [3, 4], advTechs: [0, 19, null] } } });
     const url = new URL(open.mock.calls[0][0]);

@@ -5,30 +5,75 @@ import TechBoard from '@/components/TechBoard';
 import RoundScoringBoard from '@/components/RoundScoringBoard';
 import LostFleetShips from '@/components/LostFleetShips';
 import BoosterRow from '@/components/BoosterRow';
+import GalaxyMap from '@/components/GalaxyMap';
 import { TilePlacementProvider, useTilePlacement } from '@/components/tile-placement';
 import { BUILDER_GROUPS, PLAYER_COUNTS, slotsToParams, type SlotRows } from '@/lib/builder-groups';
+import {
+  defaultLargeMap,
+  fitPlanets,
+  hasMapSizeChoice,
+  mapLayoutKey,
+  planetsToParams,
+  samePlanets,
+  samplePlanets,
+  type PlanetMap,
+} from '@/lib/galaxy-map';
 
 interface Props {
   initialSlots: SlotRows;
   initialLostFleet: boolean;
   initialPlayers: number;
+  initialPlanets: PlanetMap | null; // null = the layout's sample map
+  initialLargeMap: boolean;
   // Rendered between the title row and the boards (e.g. the BGA import panel).
   children?: ReactNode;
 }
 
 // /builder page shell: owns the page-wide Lost Fleet toggle, the tile placement
 // state shared by every board, and the "Generate link" button.
-export default function BoardConstructor({ initialSlots, initialLostFleet, initialPlayers, children }: Props) {
+export default function BoardConstructor({
+  initialSlots,
+  initialLostFleet,
+  initialPlayers,
+  initialPlanets,
+  initialLargeMap,
+  children,
+}: Props) {
   const [lostFleet, setLostFleet] = useState(initialLostFleet);
   const [players, setPlayers] = useState(initialPlayers);
   const placement = useTilePlacement(BUILDER_GROUPS, initialSlots, lostFleet, players);
   const [copied, setCopied] = useState(false);
+
+  const [largeMap, setLargeMap] = useState(initialLargeMap);
+  const layoutKey = mapLayoutKey(players, lostFleet, largeMap);
+  const [planets, setPlanets] = useState<PlanetMap>(() =>
+    initialPlanets ? fitPlanets(initialPlanets, layoutKey, lostFleet, players) : samplePlanets(layoutKey)
+  );
+
+  // A new setup (players / Lost Fleet / map size) swaps an untouched sample map
+  // for the new layout's sample; an edited map keeps the planets that still fit.
+  const [prevLayoutKey, setPrevLayoutKey] = useState(layoutKey);
+  if (prevLayoutKey !== layoutKey) {
+    setPrevLayoutKey(layoutKey);
+    setPlanets(
+      samePlanets(planets, samplePlanets(prevLayoutKey))
+        ? samplePlanets(layoutKey)
+        : fitPlanets(planets, layoutKey, lostFleet, players)
+    );
+  }
+
+  function changePlayers(n: number) {
+    setPlayers(n);
+    setLargeMap(defaultLargeMap(n));
+  }
 
   function generateLink() {
     const params = new URLSearchParams();
     params.set('p', String(players));
     if (lostFleet) params.set('lf', '1');
     slotsToParams(BUILDER_GROUPS, placement.slots, params);
+    if (hasMapSizeChoice(players, lostFleet)) params.set('ms', largeMap ? 'l' : 's');
+    planetsToParams(planets, layoutKey, params);
     const qs = params.toString();
     const url = `${window.location.origin}${window.location.pathname}${qs ? `?${qs}` : ''}`;
     window.history.replaceState(null, '', url);
@@ -53,7 +98,7 @@ export default function BoardConstructor({ initialSlots, initialLostFleet, initi
                 <button
                   key={n}
                   type="button"
-                  onClick={() => setPlayers(n)}
+                  onClick={() => changePlayers(n)}
                   className={`px-3 py-1 text-sm rounded-md transition-colors ${
                     players === n ? 'bg-white shadow-sm font-semibold text-blue-600' : 'text-gray-500 hover:text-gray-800'
                   }`}
@@ -90,6 +135,15 @@ export default function BoardConstructor({ initialSlots, initialLostFleet, initi
           <RoundScoringBoard lostFleet={lostFleet} />
           {lostFleet && <LostFleetShips players={players} />}
           <BoosterRow players={players} lostFleet={lostFleet} />
+          <GalaxyMap
+            layoutKey={layoutKey}
+            planets={planets}
+            onChange={setPlanets}
+            lostFleet={lostFleet}
+            players={players}
+            large={largeMap}
+            onLargeChange={setLargeMap}
+          />
         </div>
       </TilePlacementProvider>
     </>
