@@ -15,7 +15,9 @@
  * on a live game, so each player's held `boosterId` is added back.
  * `gamedatas.map` ({q: {r: hex}}) gives the planets as `pl` = "q,r:planetType";
  * its sector count (hexes with isTileCenter) tells base 3-4 player games' map
- * size, sent as `ms` (10 sectors = 'l').
+ * size, sent as `ms` (10 sectors = 'l'). `board.lostFleet.scoreBoard` = 0 means
+ * the extension's advanced tech needs 25 VP rather than 3 ships (BGA then shows
+ * #gpj-roundBoardExt-techReq), sent as `xvp=1`.
  */
 
 const NOT_A_GAME_MESSAGE =
@@ -60,7 +62,10 @@ Object.keys(map).forEach(function (q) {
     if (Number(hex.planetType)) params.append('pl', q + ',' + r + ':' + Number(hex.planetType));
   });
 });
-if (board.config && board.config.lostFleet) params.set('lf', '1');
+if (board.config && board.config.lostFleet) {
+  params.set('lf', '1');
+  if (board.lostFleet && Number(board.lostFleet.scoreBoard) === 0) params.set('xvp', '1');
+}
 else if (sectors && players > 2) params.set('ms', sectors >= 10 ? 'l' : 's');
 window.open(${JSON.stringify(builderUrl)} + '?' + params.toString(), '_blank');
 `;

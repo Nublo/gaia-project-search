@@ -30,6 +30,7 @@ export default async function ConstructorPage({
   const initialPlanets = parsePlanets(params.pl);
   const initialLostFleet =
     params.lf === '1' ||
+    params.xvp === '1' ||
     BUILDER_GROUPS.some((g) =>
       initialSlots[g.key].some((id, i) => id != null && (g.isLostFleet(id) || g.lostFleetOnlySlots.includes(i)))
     ) ||
@@ -44,6 +45,7 @@ export default async function ConstructorPage({
           initialPlayers={initialPlayers}
           initialPlanets={initialPlanets}
           initialLargeMap={parseMapSize(params.ms, initialPlayers)}
+          initialVpRequirement={params.xvp === '1'}
         >
           <BgaImportBookmarklet />
         </BoardConstructor>

@@ -25,6 +25,9 @@ export interface RoundBoardLayout {
   lostFleetExtension: { left: number; width: number; overlap: number };
   // Advanced tech slot on the extension, as percentages of the extension image.
   lostFleetExtensionAdvancedTech: SlotRect;
+  // Box covering the "3 ships" requirement above that slot when the game
+  // uses 25 VP instead (BGA #gpj-roundBoardExt-techReq), same units.
+  lostFleetExtensionVpRequirement: SlotRect;
 }
 
 // Lost Fleet ships (src/lib/ship-layout.json). Slots are percentages of each

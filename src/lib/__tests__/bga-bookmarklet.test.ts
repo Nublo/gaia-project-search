@@ -131,6 +131,15 @@ describe('buildBookmarklet', () => {
     expect(url.searchParams.get('ms')).toBe('l');
   });
 
+  it('imports the extension tech requirement: scoreBoard 0 = 25 VP, 1 = 3 ships', () => {
+    const board = (scoreBoard: number) => ({
+      game_name: 'gaiaproject',
+      gamedatas: { board: { techs: [1], config: { lostFleet: 1 }, lostFleet: { scoreBoard, ships: [] } } },
+    });
+    expect(new URL(run(board(0)).open.mock.calls[0][0]).searchParams.get('xvp')).toBe('1');
+    expect(new URL(run(board(1)).open.mock.calls[0][0]).searchParams.get('xvp')).toBeNull();
+  });
+
   it('skips empty slots', () => {
     const { open } = run({ game_name: 'gaiaproject', gamedatas: { board: { techs: [3, 4], advTechs: [0, 19, null] } } });
     const url = new URL(open.mock.calls[0][0]);

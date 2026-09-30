@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { BoardSurface, TileList, type SurfaceSlot } from '@/components/tile-placement';
 import { ADVANCED_EXTENSION_SLOT, ROUND_LAYOUT } from '@/lib/builder-groups';
 
@@ -16,11 +17,48 @@ const EXTENSION_SLOTS: SurfaceSlot[] = [
   { group: 'advanced', index: ADVANCED_EXTENSION_SLOT, rect: ROUND_LAYOUT.lostFleetExtensionAdvancedTech, idleBorder: 'border-gray-300' },
 ];
 
-export default function RoundScoringBoard({ lostFleet }: { lostFleet: boolean }) {
+// Percentages of the extension image, as a positioned box.
+const VP_REQUIREMENT = ROUND_LAYOUT.lostFleetExtensionVpRequirement;
+const VP_REQUIREMENT_STYLE = {
+  top: `${VP_REQUIREMENT.top}%`,
+  left: `${VP_REQUIREMENT.left}%`,
+  width: `${VP_REQUIREMENT.width}%`,
+  height: `${VP_REQUIREMENT.height}%`,
+};
+
+interface Props {
+  lostFleet: boolean;
+  // The extension's advanced tech needs 25 VP instead of 3 colonized ships (BGA board.lostFleet.scoreBoard = 0).
+  vpRequirement: boolean;
+  onVpRequirementChange: (vpRequirement: boolean) => void;
+}
+
+export default function RoundScoringBoard({ lostFleet, vpRequirement, onVpRequirementChange }: Props) {
   const ext = ROUND_LAYOUT.lostFleetExtension;
   return (
     <div className="w-full max-w-6xl mx-auto p-6 bg-white rounded-lg shadow-md">
-      <h4 className="text-xs font-semibold text-gray-600 uppercase mb-2">Round scorings</h4>
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+        <h4 className="text-xs font-semibold text-gray-600 uppercase">Round scorings</h4>
+        {lostFleet && (
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            Extension tech needs
+            <div className="inline-flex rounded-lg border border-gray-200 p-0.5 bg-gray-50">
+              {[false, true].map((vp) => (
+                <button
+                  key={String(vp)}
+                  type="button"
+                  onClick={() => onVpRequirementChange(vp)}
+                  className={`px-3 py-1 rounded-md transition-colors ${
+                    vpRequirement === vp ? 'bg-white shadow-sm font-semibold text-blue-600' : 'text-gray-500 hover:text-gray-800'
+                  }`}
+                >
+                  {vp ? '25 VP' : '3 ships'}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
       <p className="text-sm text-gray-500 mb-4">
         Drag round scoring tiles onto rounds 1–6 and final scoring tiles onto the two grey panels beside the 6/12/18 strip (or click a tile, then click a slot).
         {lostFleet && ' The Lost Fleet extension below takes an advanced tech from the Tech board.'}
@@ -43,7 +81,21 @@ export default function RoundScoringBoard({ lostFleet }: { lostFleet: boolean })
                 alt="Lost Fleet scoring board extension"
                 aspect="aspect-[609/214]"
                 slots={EXTENSION_SLOTS}
+                className="@container"
                 style={{ width: `${ext.width}%`, marginLeft: `${ext.left}%`, marginTop: `-${ext.overlap}%` }}
+                overlay={
+                  vpRequirement && (
+                    // Covers the printed "3 ships" requirement, like BGA's #gpj-roundBoardExt-techReq.
+                    <div className="absolute bg-black flex items-center justify-center" style={VP_REQUIREMENT_STYLE}>
+                      <div className="relative h-full aspect-square">
+                        <Image src="/round-bonus/vp.png" alt="" fill sizes="40px" className="object-contain" />
+                        <span className="absolute inset-0 flex items-center justify-center font-bold text-white text-[3.2cqw] [text-shadow:0_0_2px_#000,0_0_2px_#000]">
+                          25
+                        </span>
+                      </div>
+                    </div>
+                  )
+                }
               />
             )}
           </div>

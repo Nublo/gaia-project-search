@@ -25,6 +25,7 @@ interface Props {
   initialPlayers: number;
   initialPlanets: PlanetMap | null; // null = the layout's sample map
   initialLargeMap: boolean;
+  initialVpRequirement: boolean;
   // Rendered between the title row and the boards (e.g. the BGA import panel).
   children?: ReactNode;
 }
@@ -37,12 +38,14 @@ export default function BoardConstructor({
   initialPlayers,
   initialPlanets,
   initialLargeMap,
+  initialVpRequirement,
   children,
 }: Props) {
   const [lostFleet, setLostFleet] = useState(initialLostFleet);
   const [players, setPlayers] = useState(initialPlayers);
   const placement = useTilePlacement(BUILDER_GROUPS, initialSlots, lostFleet, players);
   const [copied, setCopied] = useState(false);
+  const [vpRequirement, setVpRequirement] = useState(initialVpRequirement);
 
   const [largeMap, setLargeMap] = useState(initialLargeMap);
   const layoutKey = mapLayoutKey(players, lostFleet, largeMap);
@@ -71,6 +74,7 @@ export default function BoardConstructor({
     const params = new URLSearchParams();
     params.set('p', String(players));
     if (lostFleet) params.set('lf', '1');
+    if (lostFleet && vpRequirement) params.set('xvp', '1');
     slotsToParams(BUILDER_GROUPS, placement.slots, params);
     if (hasMapSizeChoice(players, lostFleet)) params.set('ms', largeMap ? 'l' : 's');
     planetsToParams(planets, layoutKey, params);
@@ -132,7 +136,7 @@ export default function BoardConstructor({
       <TilePlacementProvider placement={placement}>
         <div className="space-y-4">
           <TechBoard lostFleet={lostFleet} />
-          <RoundScoringBoard lostFleet={lostFleet} />
+          <RoundScoringBoard lostFleet={lostFleet} vpRequirement={vpRequirement} onVpRequirementChange={setVpRequirement} />
           {lostFleet && <LostFleetShips players={players} />}
           <BoosterRow players={players} lostFleet={lostFleet} />
           <GalaxyMap

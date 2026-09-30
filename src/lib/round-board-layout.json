@@ -16,5 +16,6 @@
     "width": 57.02,
     "overlap": 3.0
   },
-  "lostFleetExtensionAdvancedTech": { "top": 35.51, "left": 37.19, "width": 25.78, "height": 53.74 }
+  "lostFleetExtensionAdvancedTech": { "top": 35.51, "left": 37.19, "width": 25.78, "height": 53.74 },
+  "lostFleetExtensionVpRequirement": { "top": 16.82, "left": 37.6, "width": 24.63, "height": 17.29 }
 }
