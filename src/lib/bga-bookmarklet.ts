@@ -20,7 +20,9 @@
  * #gpj-roundBoardExt-techReq), sent as `xvp=1`. Factions go to `rc` in seat
  * (playerList) order: a live game has them in `gamedatas.players[].raceId`; a
  * replay starts before the picks, so they come from its log (`g_gamelogs`,
- * notifyChooseRace).
+ * notifyChooseRace). The starting mines / Planetary Institutes placed before
+ * round 1 come from the log's notifyPlaceStartingBldg ({playerId, q, r,
+ * buildingId}), sent as `bd` = "q,r:buildingId".
  */
 
 const NOT_A_GAME_MESSAGE =
@@ -73,8 +75,12 @@ Object.keys(gamePlayers).forEach(function (pid) {
 });
 (window.g_gamelogs || []).forEach(function (packet) {
   (packet.data || []).forEach(function (n) {
-    var pid = n.args && String(n.args.playerId);
-    if (n.type === 'notifyChooseRace' && Number(n.args.raceId) && !races[pid]) races[pid] = Number(n.args.raceId);
+    var a = n.args || {};
+    var pid = String(a.playerId);
+    if (n.type === 'notifyChooseRace' && Number(a.raceId) && !races[pid]) races[pid] = Number(a.raceId);
+    if (n.type === 'notifyPlaceStartingBldg' && [4, 9].indexOf(Number(a.buildingId)) >= 0) {
+      params.append('bd', a.q + ',' + a.r + ':' + Number(a.buildingId));
+    }
   });
 });
 seats.concat(Object.keys(races).filter(function (pid) { return seats.indexOf(pid) < 0; })).forEach(function (pid) {

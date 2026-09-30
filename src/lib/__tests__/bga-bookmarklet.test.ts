@@ -157,6 +157,23 @@ describe('buildBookmarklet', () => {
     expect(new URL(open.mock.calls[0][0]).searchParams.getAll('rc')).toEqual(['4', '9']);
   });
 
+  it('imports starting mines and Planetary Institutes from the replay log', () => {
+    const start = (playerId: number, q: number, r: number, buildingId: number) => ({
+      type: 'notifyPlaceStartingBldg',
+      args: { playerId, q, r, buildingId },
+    });
+    const { open } = run(
+      { game_name: 'gaiaproject', gamedatas: { playerList: [1, 2], board: { techs: [1] } } },
+      {
+        g_gamelogs: [
+          { data: [start(1, 3, 2, 4), start(2, -2, 4, 9)] },
+          { data: [start(1, -3, 6, 4), { type: 'notifyBuild', args: { playerId: 2, q: 0, r: 0, buildingId: 4 } }] },
+        ],
+      }
+    );
+    expect(new URL(open.mock.calls[0][0]).searchParams.getAll('bd')).toEqual(['3,2:4', '-2,4:9', '-3,6:4']);
+  });
+
   it('imports factions from a live game', () => {
     const { open } = run({
       game_name: 'gaiaproject',

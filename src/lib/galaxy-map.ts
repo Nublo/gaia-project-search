@@ -3,7 +3,7 @@
 // player games the map size), so map-layouts.json holds one layout per setup,
 // taken from stored games, plus a real map as each layout's sample.
 import mapLayouts from '@/lib/map-layouts.json';
-import { PLANET_NAMES, REBELLION_PLANET, isLostFleetPlanet } from '@/lib/gaia-constants';
+import { PLANET_NAMES, REBELLION_PLANET, RACE_NAMES, getRaceHomePlanet, isLostFleetPlanet } from '@/lib/gaia-constants';
 
 export type MapLayoutKey = 'base2' | 'base8' | 'base10' | 'lf2' | 'lf3' | 'lf4';
 
@@ -159,4 +159,61 @@ export function planetsToParams(planets: PlanetMap, key: MapLayoutKey, params: U
 export function parseMapSize(raw: string | string[] | undefined, players: number): boolean {
   const v = Array.isArray(raw) ? raw[0] : raw;
   return v === 'l' ? true : v === 's' ? false : defaultLargeMap(players);
+}
+
+// ---- Buildings ----
+// Buildings come from BGA's structures sprite (public/map/structuresLF.png =
+// BGA img/structures.png, 900x1800): one 200 px row per faction color pair,
+// row = floor((raceId - 1) / 2), and one column per building. A building takes
+// the color of the planet it's on (every starting building BGA logs sits on
+// its faction's home planet), so only planets that are some faction's home
+// (colored planets, asteroids, protoplanets) can hold one here.
+
+export const STRUCTURES_SPRITE = { src: '/map/structuresLF.png', width: 900, height: 1800, rowHeight: 200 };
+
+export const MINE = 4;
+export const PLANETARY_INSTITUTE = 9;
+export type MapBuilding = typeof MINE | typeof PLANETARY_INSTITUTE;
+
+// Piece of the sprite per building (x offset in its row, size) and its size on
+// the map. BGA draws map mines at .7 (.gpj-hex .gpj-structure4), ours are 20%
+// larger; the PI keeps BGA's .6 so it still fits its hex.
+export const BUILDING_SPRITES: Record<MapBuilding, { x: number; width: number; height: number; scale: number; name: string }> = {
+  [MINE]: { x: 675, width: 69, height: 77, scale: 0.84, name: 'Mine' },
+  [PLANETARY_INSTITUTE]: { x: 0, width: 218, height: 198, scale: 0.6, name: 'Planetary Institute' },
+};
+
+// Clicking a planet cycles: nothing → mine → PI → nothing.
+export function nextBuilding(current: MapBuilding | undefined): MapBuilding | undefined {
+  return current == null ? MINE : current === MINE ? PLANETARY_INSTITUTE : undefined;
+}
+
+export type BuildingMap = Record<string, MapBuilding>; // hexKey -> building
+
+// Sprite row of the faction color whose home planet this is, or null.
+export function structureSpriteRow(planet: number | undefined): number | null {
+  if (planet == null) return null;
+  const race = Object.keys(RACE_NAMES).map(Number).find((id) => getRaceHomePlanet(id) === planet);
+  return race ? Math.floor((race - 1) / 2) : null;
+}
+
+// Keeps buildings only where the planet can hold one.
+export function fitBuildings(buildings: BuildingMap, planets: PlanetMap): BuildingMap {
+  return Object.fromEntries(Object.entries(buildings).filter(([k]) => structureSpriteRow(planets[k]) != null));
+}
+
+// Link param `bd`: one "q,r:buildingId" per building (4 = mine, 9 = PI).
+export function parseBuildings(raw: string | string[] | undefined): BuildingMap {
+  const values = Array.isArray(raw) ? raw : raw ? [raw] : [];
+  const buildings: BuildingMap = {};
+  for (const v of values) {
+    const m = /^(-?\d+),(-?\d+):(\d+)$/.exec(v);
+    const id = m && Number(m[3]);
+    if (m && (id === MINE || id === PLANETARY_INSTITUTE)) buildings[hexKey(Number(m[1]), Number(m[2]))] = id;
+  }
+  return buildings;
+}
+
+export function buildingsToParams(buildings: BuildingMap, params: URLSearchParams) {
+  for (const [k, id] of Object.entries(buildings)) params.append('bd', `${k}:${id}`);
 }

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import GameSetupView from '@/components/GameSetupView';
-import { parseSetup, setupPlanets, setupRaces, setupToQuery, validateSetup, type SearchParams } from '@/lib/builder-params';
+import { parseSetup, setupBuildings, setupPlanets, setupRaces, setupToQuery, validateSetup, type SearchParams } from '@/lib/builder-params';
 
 export const metadata: Metadata = {
   title: 'Game Setup',
@@ -12,7 +12,8 @@ export default async function GameSetupPage({ searchParams }: { searchParams: Pr
   const setup = parseSetup(await searchParams);
   const planets = setupPlanets(setup);
   const races = setupRaces(setup);
-  const query = setupToQuery({ ...setup, planets, races });
+  const buildings = setupBuildings(setup, planets);
+  const query = setupToQuery({ ...setup, planets, buildings, races });
   // Only complete setups are shown; anything else goes back to the builder to finish.
   if (validateSetup({ ...setup, planets }).length > 0) redirect(`/builder?${query}`);
 
@@ -23,6 +24,7 @@ export default async function GameSetupPage({ searchParams }: { searchParams: Pr
         lostFleet={setup.lostFleet}
         slots={setup.slots}
         planets={planets}
+        buildings={buildings}
         largeMap={setup.largeMap}
         vpRequirement={setup.vpRequirement}
         races={races}

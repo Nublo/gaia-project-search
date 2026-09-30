@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
   availablePlanets,
+  buildingsToParams,
+  fitBuildings,
+  nextBuilding,
+  parseBuildings,
+  structureSpriteRow,
   fitPlanets,
   mapGeometry,
   mapLayoutKey,
@@ -103,5 +108,34 @@ describe('link params', () => {
     expect(parseMapSize('s', 4)).toBe(false);
     expect(parseMapSize(undefined, 4)).toBe(true);
     expect(parseMapSize(undefined, 3)).toBe(false);
+  });
+});
+
+describe('buildings', () => {
+  it('uses the structures sprite row of the planet\'s faction color', () => {
+    // Sprite rows: blue, yellow, brown, red, orange, black, white, pink, cyan
+    expect([1, 4, 5, 2, 3, 6, 7, 11, 12].map(structureSpriteRow)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+  });
+
+  it('has no color for Gaia, Transdim, the Lost Planet and ships', () => {
+    expect([8, 9, 10, 15, 16, 17, 18, undefined].map(structureSpriteRow)).toEqual([null, null, null, null, null, null, null, null]);
+  });
+
+  it('cycles nothing → mine → PI → nothing', () => {
+    expect(nextBuilding(undefined)).toBe(4);
+    expect(nextBuilding(4)).toBe(9);
+    expect(nextBuilding(9)).toBeUndefined();
+  });
+
+  it('keeps buildings only on planets that can hold one', () => {
+    expect(fitBuildings({ '0,0': 4, '1,1': 9, '2,2': 4 }, { '0,0': 4, '1,1': 8 })).toEqual({ '0,0': 4 });
+  });
+
+  it('round-trips bd params, ignoring other building ids', () => {
+    const params = new URLSearchParams();
+    buildingsToParams({ '0,0': 4, '-3,4': 9 }, params);
+    expect(params.getAll('bd')).toEqual(['0,0:4', '-3,4:9']);
+    expect(parseBuildings([...params.getAll('bd'), '1,1:5', 'x'])).toEqual({ '0,0': 4, '-3,4': 9 });
+    expect(parseBuildings(undefined)).toEqual({});
   });
 });

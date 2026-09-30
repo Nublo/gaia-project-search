@@ -14,10 +14,12 @@ import { BUILDER_GROUPS, PLAYER_COUNTS, type SlotRows } from '@/lib/builder-grou
 import { setupToQuery, validateSetup } from '@/lib/builder-params';
 import {
   defaultLargeMap,
+  fitBuildings,
   fitPlanets,
   mapLayoutKey,
   samePlanets,
   samplePlanets,
+  type BuildingMap,
   type PlanetMap,
 } from '@/lib/galaxy-map';
 
@@ -29,6 +31,7 @@ interface Props {
   initialLargeMap: boolean;
   initialVpRequirement: boolean;
   initialRaces: number[];
+  initialBuildings: BuildingMap;
   // Rendered between the title row and the boards (e.g. the BGA import panel).
   children?: ReactNode;
 }
@@ -43,6 +46,7 @@ export default function BoardConstructor({
   initialLargeMap,
   initialVpRequirement,
   initialRaces,
+  initialBuildings,
   children,
 }: Props) {
   const router = useRouter();
@@ -58,16 +62,19 @@ export default function BoardConstructor({
     initialPlanets ? fitPlanets(initialPlanets, layoutKey, lostFleet, players) : samplePlanets(layoutKey)
   );
 
+  const [buildings, setBuildings] = useState(() => fitBuildings(initialBuildings, planets));
+
   // A new setup (players / Lost Fleet / map size) swaps an untouched sample map
-  // for the new layout's sample; an edited map keeps the planets that still fit.
+  // for the new layout's sample; an edited map keeps the planets (and their
+  // buildings) that still fit.
   const [prevLayoutKey, setPrevLayoutKey] = useState(layoutKey);
   if (prevLayoutKey !== layoutKey) {
     setPrevLayoutKey(layoutKey);
-    setPlanets(
-      samePlanets(planets, samplePlanets(prevLayoutKey))
-        ? samplePlanets(layoutKey)
-        : fitPlanets(planets, layoutKey, lostFleet, players)
-    );
+    const nextPlanets = samePlanets(planets, samplePlanets(prevLayoutKey))
+      ? samplePlanets(layoutKey)
+      : fitPlanets(planets, layoutKey, lostFleet, players);
+    setPlanets(nextPlanets);
+    setBuildings(fitBuildings(buildings, nextPlanets));
   }
 
   // Fewer players or Lost Fleet off drops the picks that no longer fit
@@ -88,7 +95,7 @@ export default function BoardConstructor({
   // Saves the setup into this page's URL (so Back from /game-setup returns to
   // it) and returns the query string.
   function saveToUrl(): string {
-    const qs = setupToQuery({ players, lostFleet, slots: placement.slots, planets, largeMap, vpRequirement, races });
+    const qs = setupToQuery({ players, lostFleet, slots: placement.slots, planets, buildings, largeMap, vpRequirement, races });
     window.history.replaceState(null, '', `${window.location.pathname}?${qs}`);
     return qs;
   }
@@ -201,6 +208,8 @@ export default function BoardConstructor({
             layoutKey={layoutKey}
             planets={planets}
             onChange={setPlanets}
+            buildings={buildings}
+            onBuildingsChange={setBuildings}
             lostFleet={lostFleet}
             players={players}
             large={largeMap}

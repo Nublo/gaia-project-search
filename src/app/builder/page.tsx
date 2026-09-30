@@ -21,6 +21,7 @@ export default async function ConstructorPage({ searchParams }: { searchParams: 
           initialLargeMap={setup.largeMap}
           initialVpRequirement={setup.vpRequirement}
           initialRaces={setup.races}
+          initialBuildings={setup.buildings}
         >
           <BgaImportBookmarklet />
         </BoardConstructor>

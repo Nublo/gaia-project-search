@@ -2,13 +2,17 @@
 // the same query string, so a link opens in either.
 import { BUILDER_GROUPS, SHIPS, parsePlayers, parseSlots, shipsInPlay, slotExists, slotsInPlay, slotsToParams, type SlotRows } from '@/lib/builder-groups';
 import {
+  buildingsToParams,
+  fitBuildings,
   fitPlanets,
   hasMapSizeChoice,
   mapLayoutKey,
   parseMapSize,
+  parseBuildings,
   parsePlanets,
   planetsToParams,
   samplePlanets,
+  type BuildingMap,
   type PlanetMap,
 } from '@/lib/galaxy-map';
 import { fitRaces, parseRaces } from '@/lib/builder-factions';
@@ -21,6 +25,7 @@ export interface Setup {
   lostFleet: boolean;
   slots: SlotRows;
   planets: PlanetMap | null; // null = the map layout's sample
+  buildings: BuildingMap; // mine / PI per hex (in the planet's color)
   largeMap: boolean;
   vpRequirement: boolean; // Lost Fleet extension tech needs 25 VP, not 3 ships
   races: number[]; // seat order
@@ -53,6 +58,7 @@ export function parseSetup(params: SearchParams): Setup {
     lostFleet,
     slots,
     planets,
+    buildings: parseBuildings(params.bd),
     largeMap: parseMapSize(params.ms, players),
     vpRequirement: params.xvp === '1',
     races,
@@ -63,6 +69,10 @@ export function parseSetup(params: SearchParams): Setup {
 export function setupPlanets(setup: Setup): PlanetMap {
   const key = mapLayoutKey(setup.players, setup.lostFleet, setup.largeMap);
   return setup.planets ? fitPlanets(setup.planets, key, setup.lostFleet, setup.players) : samplePlanets(key);
+}
+
+export function setupBuildings(setup: Setup, planets: PlanetMap): BuildingMap {
+  return fitBuildings(setup.buildings, planets);
 }
 
 export function setupRaces(setup: Setup): number[] {
@@ -79,6 +89,7 @@ export function setupToQuery(setup: Setup & { planets: PlanetMap }): string {
   slotsToParams(BUILDER_GROUPS, setup.slots, params);
   if (hasMapSizeChoice(players, lostFleet)) params.set('ms', setup.largeMap ? 'l' : 's');
   planetsToParams(setup.planets, mapLayoutKey(players, lostFleet, setup.largeMap), params);
+  buildingsToParams(fitBuildings(setup.buildings, setup.planets), params);
   return params.toString();
 }
 

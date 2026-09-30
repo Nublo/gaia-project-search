@@ -6,12 +6,18 @@ import { PLANET_IMAGES, PLANET_NAMES } from '@/lib/gaia-constants';
 import {
   HEX_H,
   HEX_W,
+  BUILDING_SPRITES,
+  STRUCTURES_SPRITE,
   SECTOR_H,
   SECTOR_W,
   availablePlanets,
   hasMapSizeChoice,
   hexKey,
   mapGeometry,
+  nextBuilding,
+  structureSpriteRow,
+  type BuildingMap,
+  type MapBuilding,
   type Box,
   type MapHex,
   type MapLayoutKey,
@@ -39,17 +45,50 @@ function boxStyle(b: Box, map: { width: number; height: number }): CSSProperties
   };
 }
 
+// A building's piece of the structures sprite, centered on the hex at its map scale.
+function buildingStyle(building: MapBuilding, row: number): CSSProperties {
+  const { src, width, height, rowHeight } = STRUCTURES_SPRITE;
+  const piece = BUILDING_SPRITES[building];
+  const w = piece.width * piece.scale;
+  const h = piece.height * piece.scale;
+  return {
+    width: `${(w / HEX_W) * 100}%`,
+    height: `${(h / HEX_H) * 100}%`,
+    left: `${((HEX_W - w) / 2 / HEX_W) * 100}%`,
+    top: `${((HEX_H - h) / 2 / HEX_H) * 100}%`,
+    backgroundImage: `url(${src})`,
+    // Sprite scaled so the piece fills the box; percentage positions are
+    // offset / (sprite size - box size).
+    backgroundSize: `${(width / piece.width) * 100}% ${(height / piece.height) * 100}%`,
+    backgroundPosition: `${(piece.x / (width - piece.width)) * 100}% ${((row * rowHeight) / (height - piece.height)) * 100}%`,
+  };
+}
+
+const MAP_BUILDINGS = Object.keys(BUILDING_SPRITES).map(Number) as MapBuilding[];
+
 interface Props {
   layoutKey: MapLayoutKey;
   planets: PlanetMap;
   onChange: (planets: PlanetMap) => void;
+  buildings: BuildingMap;
+  onBuildingsChange: (buildings: BuildingMap) => void;
   lostFleet: boolean;
   players: number;
   large: boolean;
   onLargeChange: (large: boolean) => void;
 }
 
-export default function GalaxyMap({ layoutKey, planets, onChange, lostFleet, players, large, onLargeChange }: Props) {
+export default function GalaxyMap({
+  layoutKey,
+  planets,
+  onChange,
+  buildings,
+  onBuildingsChange,
+  lostFleet,
+  players,
+  large,
+  onLargeChange,
+}: Props) {
   const geometry = useMemo(() => mapGeometry(layoutKey), [layoutKey]);
   const choices = availablePlanets(lostFleet, players);
   const [picking, setPicking] = useState<MapHex | null>(null);
@@ -78,10 +117,27 @@ export default function GalaxyMap({ layoutKey, planets, onChange, lostFleet, pla
   }
 
   function setPlanet(hex: MapHex, planet: number | null) {
+    const key = hexKey(hex.q, hex.r);
     const next = { ...planets };
-    if (planet == null) delete next[hexKey(hex.q, hex.r)];
-    else next[hexKey(hex.q, hex.r)] = planet;
+    if (planet == null) delete next[key];
+    else next[key] = planet;
     onChange(next);
+    if (buildings[key] != null) onBuildingsChange(withBuilding(buildings, key, undefined)); // a building goes with its planet
+  }
+
+  // Empty hex: open the planet picker. Planet of some faction's color: toggle
+  // through a mine and a Planetary Institute of that color. Other planets (Gaia,
+  // Transdim, Lost Planet, ships): nothing yet.
+  function clickHex(hex: MapHex) {
+    const key = hexKey(hex.q, hex.r);
+    const planet = planets[key];
+    if (planet == null) {
+      setPicking(picking?.q === hex.q && picking.r === hex.r ? null : hex);
+      return;
+    }
+    setPicking(null);
+    if (structureSpriteRow(planet) == null) return;
+    onBuildingsChange(withBuilding(buildings, key, nextBuilding(buildings[key])));
   }
 
   // Picker below the hex, or above it near the bottom of the map; kept inside the map horizontally.
@@ -97,7 +153,6 @@ export default function GalaxyMap({ layoutKey, planets, onChange, lostFleet, pla
         : { bottom: `${(1 - (picking.top + picking.height * 0.15) / geometry.height) * 100}%` }),
     };
   }
-  const pickedPlanet = picking ? planets[hexKey(picking.q, picking.r)] : undefined;
 
   return (
     <div className="w-full max-w-6xl mx-auto p-6 bg-white rounded-lg shadow-md">
@@ -121,14 +176,16 @@ export default function GalaxyMap({ layoutKey, planets, onChange, lostFleet, pla
         )}
       </div>
       <p className="text-sm text-gray-500 mb-4">
-        Click a hex to place or change a planet; right-click a planet to remove it.
+        Click an empty hex to place a planet; click a planet to cycle a mine, a Planetary Institute of its color, or
+        nothing; right-click a planet to remove it.
       </p>
 
       <MapCanvas
         layoutKey={layoutKey}
         planets={planets}
         picking={picking}
-        onHexClick={(h) => setPicking(picking?.q === h.q && picking.r === h.r ? null : h)}
+        buildings={buildings}
+        onHexClick={clickHex}
         onHexRightClick={(h) => {
           setPicking(null);
           if (planets[hexKey(h.q, h.r)] != null) setPlanet(h, null);
@@ -151,29 +208,33 @@ export default function GalaxyMap({ layoutKey, planets, onChange, lostFleet, pla
                     setPlanet(picking, id);
                     setPicking(null);
                   }}
-                  className={`relative aspect-square rounded hover:bg-blue-50 ${pickedPlanet === id ? 'ring-2 ring-blue-500' : ''}`}
+                  className="relative aspect-square rounded hover:bg-blue-50"
                 >
                   <Image src={`/map/planets/${PLANET_IMAGES[id]}`} alt={PLANET_NAMES[id]} fill sizes="44px" className="object-contain p-0.5" />
                 </button>
               ))}
             </div>
-            {pickedPlanet != null && (
-              <button
-                type="button"
-                onClick={() => {
-                  setPlanet(picking, null);
-                  setPicking(null);
-                }}
-                className="mt-2 w-full text-xs font-semibold py-1 rounded text-red-600 hover:bg-red-50"
-              >
-                Remove planet
-              </button>
-            )}
           </div>
         )}
       </MapCanvas>
     </div>
   );
+}
+
+function withBuilding(buildings: BuildingMap, key: string, building: MapBuilding | undefined): BuildingMap {
+  const next = { ...buildings };
+  if (building == null) delete next[key];
+  else next[key] = building;
+  return next;
+}
+
+function hexTitle(planet: number | undefined, building: MapBuilding | undefined): string {
+  if (planet == null) return 'Place a planet';
+  const name = PLANET_NAMES[planet];
+  if (structureSpriteRow(planet) == null) return `${name} — right-click to remove`;
+  const next = nextBuilding(building);
+  const action = next == null ? 'remove the building' : `place a ${BUILDING_SPRITES[next].name}`;
+  return `${name}${building != null ? ` with a ${BUILDING_SPRITES[building].name}` : ''} — click to ${action}, right-click to remove the planet`;
 }
 
 // The map drawing alone: sectors, Lost Fleet pieces, hex outlines and planets.
@@ -182,6 +243,7 @@ export default function GalaxyMap({ layoutKey, planets, onChange, lostFleet, pla
 export function MapCanvas({
   layoutKey,
   planets,
+  buildings = {},
   picking = null,
   onHexClick,
   onHexRightClick,
@@ -190,6 +252,7 @@ export function MapCanvas({
 }: {
   layoutKey: MapLayoutKey;
   planets: PlanetMap;
+  buildings?: BuildingMap; // mine / PI per hex, in the planet's color
   picking?: MapHex | null;
   onHexClick?: (hex: MapHex) => void;
   onHexRightClick?: (hex: MapHex) => void;
@@ -232,6 +295,8 @@ export function MapCanvas({
         ))}
         {geometry.hexes.map((h) => {
           const planet = planets[hexKey(h.q, h.r)];
+          const row = structureSpriteRow(planet); // sprite row if this planet can hold a building
+          const building = row != null ? buildings[hexKey(h.q, h.r)] : undefined;
           const isPicking = picking?.q === h.q && picking?.r === h.r;
           return (
             <div key={hexKey(h.q, h.r)} className="absolute pointer-events-none" style={boxStyle(h, geometry)}>
@@ -256,12 +321,25 @@ export function MapCanvas({
                   <Image src={`/map/planets/${PLANET_IMAGES[planet]}`} alt={PLANET_NAMES[planet]} fill sizes="80px" className="object-contain" />
                 </div>
               )}
+              {row != null &&
+                // Every building is always rendered where one can go, so placing,
+                // switching and removing them crossfades.
+                MAP_BUILDINGS.map((b) => (
+                  <div
+                    key={b}
+                    className={`absolute transition-opacity duration-700 ease-out motion-reduce:transition-none ${building === b ? 'opacity-100' : 'opacity-0'}`}
+                    role={building === b ? 'img' : undefined}
+                    aria-label={building === b ? BUILDING_SPRITES[b].name : undefined}
+                    aria-hidden={building !== b}
+                    style={buildingStyle(b, row)}
+                  />
+                ))}
               {onHexClick && (
                 // Hex-shaped hit area: bounding boxes of neighbouring hexes overlap.
                 <button
                   type="button"
                   data-hex
-                  title={planet != null ? `${PLANET_NAMES[planet]} — right-click to remove` : 'Place a planet'}
+                  title={hexTitle(planet, building)}
                   onClick={() => onHexClick(h)}
                   onContextMenu={(e) => {
                     e.preventDefault();

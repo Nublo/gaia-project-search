@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseSetup, setupPlanets, validateSetup, type SearchParams } from '../builder-params';
+import { parseSetup, setupPlanets, setupToQuery, validateSetup, type SearchParams } from '../builder-params';
 
 // Bookmarklet import of the table 919791132 replay (2 players, Lost Fleet), minus the map.
 const REPLAY_QUERY =
@@ -91,5 +91,14 @@ describe('validateSetup', () => {
       const problems = validateSetup({ ...setup, lostFleet: false, planets: {} });
       expect(problems.some((p) => p.startsWith('Galaxy map'))).toBe(false);
     });
+  });
+});
+
+describe('setupToQuery', () => {
+  it('round-trips buildings, dropping ones on planets that can\'t hold them', () => {
+    const setup = withMap('p=3&pl=0,0:4&pl=1,1:8&pl=2,2:11&bd=0,0:4&bd=1,1:4&bd=2,2:9&bd=5,5:4');
+    const query = setupToQuery(setup);
+    expect(new URLSearchParams(query).getAll('bd')).toEqual(['0,0:4', '2,2:9']);
+    expect(parseSetup(paramsOf(query)).buildings).toEqual({ '0,0': 4, '2,2': 9 });
   });
 });

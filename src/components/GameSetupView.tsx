@@ -11,7 +11,7 @@ import { MapCanvas } from '@/components/GalaxyMap';
 import { RACE_IMAGE_FILES } from '@/components/SearchCriteriaSummary';
 import { TilePlacementProvider, useTilePlacement } from '@/components/tile-placement';
 import { BUILDER_GROUPS, type SlotRows } from '@/lib/builder-groups';
-import { mapLayoutKey, type PlanetMap } from '@/lib/galaxy-map';
+import { mapLayoutKey, type BuildingMap, type PlanetMap } from '@/lib/galaxy-map';
 import { getRaceName } from '@/lib/gaia-constants';
 
 interface Props {
@@ -19,6 +19,7 @@ interface Props {
   lostFleet: boolean;
   slots: SlotRows;
   planets: PlanetMap;
+  buildings: BuildingMap;
   largeMap: boolean;
   vpRequirement: boolean;
   races: number[];
@@ -37,7 +38,7 @@ function Panel({ title, className = '', children }: { title: string; className?:
 // Read-only /game-setup view, laid out like a BGA table: tech board beside the
 // map, then Lost Fleet ships, factions in seat order, and the round board
 // beside the boosters.
-export default function GameSetupView({ players, lostFleet, slots, planets, largeMap, vpRequirement, races, query }: Props) {
+export default function GameSetupView({ players, lostFleet, slots, planets, buildings, largeMap, vpRequirement, races, query }: Props) {
   const placement = useTilePlacement(BUILDER_GROUPS, slots, lostFleet, players);
   const [copied, setCopied] = useState(false);
 
@@ -86,7 +87,7 @@ export default function GameSetupView({ players, lostFleet, slots, planets, larg
           </Panel>
           <Panel title="Galaxy map">
             <div className="flex-1 flex items-center">
-              <MapCanvas layoutKey={mapLayoutKey(players, lostFleet, largeMap)} planets={planets} className="w-full" />
+              <MapCanvas layoutKey={mapLayoutKey(players, lostFleet, largeMap)} planets={planets} buildings={buildings} className="w-full" />
             </div>
           </Panel>
         </div>
