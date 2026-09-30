@@ -24,7 +24,7 @@ export default function TechBoard({ lostFleet }: { lostFleet: boolean }) {
         </div>
         <div className="flex-1 min-w-0 w-full flex justify-center">
           <BoardSurface
-            image="/board/gameBoard.webp"
+            image="/techboard/techBoard.webp"
             alt="Gaia Project research board"
             aspect="aspect-[1220/1311]"
             className="w-full md:w-[70%] rounded overflow-hidden"
@@ -36,7 +36,7 @@ export default function TechBoard({ lostFleet }: { lostFleet: boolean }) {
                   style={{ top: `${colonize.top}%`, left: `${colonize.left}%`, width: `${colonize.width}%`, height: `${colonize.height}%` }}
                   className="absolute pointer-events-none"
                 >
-                  <Image src="/board/colonizeTile.webp" alt="Lost Fleet colonize tile" fill className="object-fill" />
+                  <Image src="/techboard/colonizeTile.webp" alt="Lost Fleet colonize tile" fill className="object-fill" />
                 </div>
               )
             }
