@@ -17,7 +17,10 @@
  * its sector count (hexes with isTileCenter) tells base 3-4 player games' map
  * size, sent as `ms` (10 sectors = 'l'). `board.lostFleet.scoreBoard` = 0 means
  * the extension's advanced tech needs 25 VP rather than 3 ships (BGA then shows
- * #gpj-roundBoardExt-techReq), sent as `xvp=1`.
+ * #gpj-roundBoardExt-techReq), sent as `xvp=1`. Factions go to `rc` in seat
+ * (playerList) order: a live game has them in `gamedatas.players[].raceId`; a
+ * replay starts before the picks, so they come from its log (`g_gamelogs`,
+ * notifyChooseRace).
  */
 
 const NOT_A_GAME_MESSAGE =
@@ -61,6 +64,21 @@ Object.keys(map).forEach(function (q) {
     if (hex.isTileCenter && Number(hex.tileNum) < 100) sectors++;
     if (Number(hex.planetType)) params.append('pl', q + ',' + r + ':' + Number(hex.planetType));
   });
+});
+var races = {};
+var seats = (ui.gamedatas.playerList || []).map(String);
+Object.keys(gamePlayers).forEach(function (pid) {
+  var raceId = Number(gamePlayers[pid] && gamePlayers[pid].raceId);
+  if (raceId) races[pid] = raceId;
+});
+(window.g_gamelogs || []).forEach(function (packet) {
+  (packet.data || []).forEach(function (n) {
+    var pid = n.args && String(n.args.playerId);
+    if (n.type === 'notifyChooseRace' && Number(n.args.raceId) && !races[pid]) races[pid] = Number(n.args.raceId);
+  });
+});
+seats.concat(Object.keys(races).filter(function (pid) { return seats.indexOf(pid) < 0; })).forEach(function (pid) {
+  if (races[pid]) params.append('rc', String(races[pid]));
 });
 if (board.config && board.config.lostFleet) {
   params.set('lf', '1');

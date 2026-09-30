@@ -6,6 +6,8 @@ import RoundScoringBoard from '@/components/RoundScoringBoard';
 import LostFleetShips from '@/components/LostFleetShips';
 import BoosterRow from '@/components/BoosterRow';
 import GalaxyMap from '@/components/GalaxyMap';
+import FactionPicker from '@/components/FactionPicker';
+import { fitRaces } from '@/lib/builder-factions';
 import { TilePlacementProvider, useTilePlacement } from '@/components/tile-placement';
 import { BUILDER_GROUPS, PLAYER_COUNTS, slotsToParams, type SlotRows } from '@/lib/builder-groups';
 import {
@@ -26,6 +28,7 @@ interface Props {
   initialPlanets: PlanetMap | null; // null = the layout's sample map
   initialLargeMap: boolean;
   initialVpRequirement: boolean;
+  initialRaces: number[];
   // Rendered between the title row and the boards (e.g. the BGA import panel).
   children?: ReactNode;
 }
@@ -39,6 +42,7 @@ export default function BoardConstructor({
   initialPlanets,
   initialLargeMap,
   initialVpRequirement,
+  initialRaces,
   children,
 }: Props) {
   const [lostFleet, setLostFleet] = useState(initialLostFleet);
@@ -65,6 +69,16 @@ export default function BoardConstructor({
     );
   }
 
+  // Fewer players or Lost Fleet off drops the picks that no longer fit
+  // (adjusted during render when the setup changes).
+  const [races, setRaces] = useState(() => fitRaces(initialRaces, players, lostFleet));
+  const raceSetup = `${players}:${lostFleet}`;
+  const [prevRaceSetup, setPrevRaceSetup] = useState(raceSetup);
+  if (prevRaceSetup !== raceSetup) {
+    setPrevRaceSetup(raceSetup);
+    setRaces(fitRaces(races, players, lostFleet));
+  }
+
   function changePlayers(n: number) {
     setPlayers(n);
     setLargeMap(defaultLargeMap(n));
@@ -75,6 +89,7 @@ export default function BoardConstructor({
     params.set('p', String(players));
     if (lostFleet) params.set('lf', '1');
     if (lostFleet && vpRequirement) params.set('xvp', '1');
+    races.forEach((id) => params.append('rc', String(id)));
     slotsToParams(BUILDER_GROUPS, placement.slots, params);
     if (hasMapSizeChoice(players, lostFleet)) params.set('ms', largeMap ? 'l' : 's');
     planetsToParams(planets, layoutKey, params);
@@ -135,6 +150,7 @@ export default function BoardConstructor({
 
       <TilePlacementProvider placement={placement}>
         <div className="space-y-4">
+          <FactionPicker races={races} onChange={setRaces} players={players} lostFleet={lostFleet} />
           <TechBoard lostFleet={lostFleet} />
           <RoundScoringBoard lostFleet={lostFleet} vpRequirement={vpRequirement} onVpRequirementChange={setVpRequirement} />
           {lostFleet && <LostFleetShips players={players} />}

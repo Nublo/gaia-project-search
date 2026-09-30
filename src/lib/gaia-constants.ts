@@ -57,6 +57,17 @@ export function getRaceName(raceId: number): string {
   return RACE_NAMES[raceId as RaceId] || `Unknown Race (${raceId})`;
 }
 
+// Home planet (PLANET_NAMES id) per race, from BGA's GPJ.getHomePlanet: races
+// pair up by color, and Lost Fleet's live on asteroids (11) and protoplanets (12).
+// A game can't have two races of the same home planet.
+export function getRaceHomePlanet(raceId: number): number {
+  return [0, 1, 1, 4, 4, 5, 5, 2, 2, 3, 3, 6, 6, 7, 7, 11, 11, 12, 12][raceId] ?? 0;
+}
+
+export function isLostFleetRace(raceId: number): boolean {
+  return raceId >= RaceId.TINKEROIDS;
+}
+
 // ============================================================================
 // BUILDINGS
 // ============================================================================

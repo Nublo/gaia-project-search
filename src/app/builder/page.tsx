@@ -3,7 +3,8 @@ import BoardConstructor from '@/components/BoardConstructor';
 import BgaImportBookmarklet from '@/components/BgaImportBookmarklet';
 import { BUILDER_GROUPS, parsePlayers, parseSlots, slotExists, type SlotRows } from '@/lib/builder-groups';
 import { parseMapSize, parsePlanets } from '@/lib/galaxy-map';
-import { isLostFleetPlanet } from '@/lib/gaia-constants';
+import { isLostFleetPlanet, isLostFleetRace } from '@/lib/gaia-constants';
+import { parseRaces } from '@/lib/builder-factions';
 
 export const metadata: Metadata = {
   title: 'Board Constructor',
@@ -28,13 +29,15 @@ export default async function ConstructorPage({
   // Explicit ?lf=1, or implied by any Lost Fleet tile or slot already in the
   // link (e.g. from the BGA import bookmarklet, which doesn't send lf).
   const initialPlanets = parsePlanets(params.pl);
+  const initialRaces = parseRaces(params.rc);
   const initialLostFleet =
     params.lf === '1' ||
     params.xvp === '1' ||
     BUILDER_GROUPS.some((g) =>
       initialSlots[g.key].some((id, i) => id != null && (g.isLostFleet(id) || g.lostFleetOnlySlots.includes(i)))
     ) ||
-    Object.values(initialPlanets ?? {}).some(isLostFleetPlanet);
+    Object.values(initialPlanets ?? {}).some(isLostFleetPlanet) ||
+    initialRaces.some(isLostFleetRace);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 py-8">
@@ -46,6 +49,7 @@ export default async function ConstructorPage({
           initialPlanets={initialPlanets}
           initialLargeMap={parseMapSize(params.ms, initialPlayers)}
           initialVpRequirement={params.xvp === '1'}
+          initialRaces={initialRaces}
         >
           <BgaImportBookmarklet />
         </BoardConstructor>

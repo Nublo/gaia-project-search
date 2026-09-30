@@ -4,13 +4,13 @@ import { buildBookmarklet } from '../bga-bookmarklet';
 const BUILDER_URL = 'https://gaia-project-search.vercel.app/builder';
 
 /** Execute the bookmarklet against a fake BGA `window`. */
-function run(gameui: unknown) {
+function run(gameui: unknown, extraWindow: Record<string, unknown> = {}) {
   const open = vi.fn();
   const alert = vi.fn();
   const href = buildBookmarklet(BUILDER_URL);
   expect(href.startsWith('javascript:')).toBe(true);
   const code = decodeURIComponent(href.slice('javascript:'.length));
-  new Function('window', 'alert', code)({ gameui, open }, alert);
+  new Function('window', 'alert', code)({ gameui, open, ...extraWindow }, alert);
   return { open, alert };
 }
 
@@ -138,6 +138,31 @@ describe('buildBookmarklet', () => {
     });
     expect(new URL(run(board(0)).open.mock.calls[0][0]).searchParams.get('xvp')).toBe('1');
     expect(new URL(run(board(1)).open.mock.calls[0][0]).searchParams.get('xvp')).toBeNull();
+  });
+
+  it('imports factions from a replay log in seat order', () => {
+    // Replay of table 919791132: gamedatas starts before the picks (raceId 0)
+    const choose = (playerId: number, raceId: number) => ({ type: 'notifyChooseRace', args: { raceId, playerId } });
+    const { open } = run(
+      {
+        game_name: 'gaiaproject',
+        gamedatas: {
+          playerList: [94420974, 93630648],
+          players: { 93630648: { raceId: 0 }, 94420974: { raceId: 0 } },
+          board: { techs: [1] },
+        },
+      },
+      { g_gamelogs: [{ data: [{ type: 'notifyBanRaceDraft', args: { raceId: 8, playerId: '94420974' } }] }, { data: [choose(93630648, 9), choose(94420974, 4)] }] }
+    );
+    expect(new URL(open.mock.calls[0][0]).searchParams.getAll('rc')).toEqual(['4', '9']);
+  });
+
+  it('imports factions from a live game', () => {
+    const { open } = run({
+      game_name: 'gaiaproject',
+      gamedatas: { playerList: [2, 1], players: { 1: { raceId: 14 }, 2: { raceId: '3' } }, board: { techs: [1] } },
+    });
+    expect(new URL(open.mock.calls[0][0]).searchParams.getAll('rc')).toEqual(['3', '14']);
   });
 
   it('skips empty slots', () => {
