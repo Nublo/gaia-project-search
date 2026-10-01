@@ -20,6 +20,12 @@ export const hexKey = (q: number, r: number) => `${q},${r}`;
 
 export type PlanetMap = Record<string, number>; // hexKey -> planetType
 
+export const MAP_LAYOUT_KEYS = Object.keys(LAYOUTS) as MapLayoutKey[];
+
+export function layoutHexKeys(key: MapLayoutKey): string[] {
+  return LAYOUTS[key].hexes.map(([q, r]) => hexKey(q, r));
+}
+
 // Base 3-4 player games use 8 or 10 sectors (a BGA table option); the player
 // count picks the usual one, and `large` overrides it. 2 player and Lost
 // Fleet games have a single layout each.
@@ -213,6 +219,24 @@ export function parseBuildings(raw: string | string[] | undefined): BuildingMap 
   }
   return buildings;
 }
+
+// Every piece a real game puts on the map (see map-timeline.ts), in the
+// owner's faction color. y = offset inside the faction's sprite row. Ivits'
+// space station (3) has no sprite of its own; it borrows the satellite cube.
+export const STRUCTURE_SPRITES: Record<number, { x: number; y: number; width: number; height: number; scale: number }> = {
+  1: { x: 750, y: 0, width: 62, height: 71, scale: 0.6 },
+  2: { x: 675, y: 100, width: 109, height: 97, scale: 0.6 },
+  3: { x: 750, y: 0, width: 62, height: 71, scale: 0.9 },
+  4: { x: 675, y: 0, width: 69, height: 77, scale: 0.84 },
+  5: { x: 425, y: 0, width: 102, height: 120, scale: 0.75 },
+  6: { x: 550, y: 0, width: 108, height: 117, scale: 0.75 },
+  7: { x: 225, y: 0, width: 186, height: 197, scale: 0.55 },
+  8: { x: 225, y: 0, width: 186, height: 197, scale: 0.55 },
+  9: { x: 0, y: 0, width: 218, height: 198, scale: 0.6 },
+  50: { x: 826, y: 0, width: 73, height: 100, scale: 0.6 },
+};
+
+export const raceSpriteRow = (raceId: number) => Math.floor((raceId - 1) / 2);
 
 export function buildingsToParams(buildings: BuildingMap, params: URLSearchParams) {
   for (const [k, id] of Object.entries(buildings)) params.append('bd', `${k}:${id}`);

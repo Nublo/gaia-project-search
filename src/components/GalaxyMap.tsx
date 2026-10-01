@@ -7,6 +7,7 @@ import {
   HEX_H,
   HEX_W,
   BUILDING_SPRITES,
+  STRUCTURE_SPRITES,
   STRUCTURES_SPRITE,
   SECTOR_H,
   SECTOR_W,
@@ -23,6 +24,7 @@ import {
   type MapLayoutKey,
   type PlanetMap,
 } from '@/lib/galaxy-map';
+import { structureName, type StructureMap } from '@/lib/map-timeline';
 
 // Shapes and strokes from BGA's gaiaproject.css (.gpj-tile, .gpj-hex).
 const SECTOR_CLIP =
@@ -61,6 +63,27 @@ function buildingStyle(building: MapBuilding, row: number): CSSProperties {
     // offset / (sprite size - box size).
     backgroundSize: `${(width / piece.width) * 100}% ${(height / piece.height) * 100}%`,
     backgroundPosition: `${(piece.x / (width - piece.width)) * 100}% ${((row * rowHeight) / (height - piece.height)) * 100}%`,
+  };
+}
+
+// A game piece (any STRUCTURE_SPRITES id) in a faction's sprite row. Several
+// pieces on one hex (satellites, Lost Fleet shared planets) sit side by side,
+// slightly smaller.
+function structureStyle(buildingId: number, row: number, index: number, count: number): CSSProperties {
+  const { src, width, height, rowHeight } = STRUCTURES_SPRITE;
+  const piece = STRUCTURE_SPRITES[buildingId] ?? STRUCTURE_SPRITES[4];
+  const scale = piece.scale * (count > 1 ? 0.75 : 1);
+  const w = piece.width * scale;
+  const h = piece.height * scale;
+  const dx = (index - (count - 1) / 2) * 50;
+  return {
+    width: `${(w / HEX_W) * 100}%`,
+    height: `${(h / HEX_H) * 100}%`,
+    left: `${((HEX_W - w) / 2 / HEX_W + dx / HEX_W) * 100}%`,
+    top: `${((HEX_H - h) / 2 / HEX_H) * 100}%`,
+    backgroundImage: `url(${src})`,
+    backgroundSize: `${(width / piece.width) * 100}% ${(height / piece.height) * 100}%`,
+    backgroundPosition: `${(piece.x / (width - piece.width)) * 100}% ${((row * rowHeight + piece.y) / (height - piece.height)) * 100}%`,
   };
 }
 
@@ -244,6 +267,8 @@ export function MapCanvas({
   layoutKey,
   planets,
   buildings = {},
+  structures,
+  spriteRows = {},
   picking = null,
   onHexClick,
   onHexRightClick,
@@ -253,6 +278,8 @@ export function MapCanvas({
   layoutKey: MapLayoutKey;
   planets: PlanetMap;
   buildings?: BuildingMap; // mine / PI per hex, in the planet's color
+  structures?: StructureMap; // a real game's pieces, in their owners' colors (replaces buildings)
+  spriteRows?: Record<number, number>; // playerId -> structures sprite row
   picking?: MapHex | null;
   onHexClick?: (hex: MapHex) => void;
   onHexRightClick?: (hex: MapHex) => void;
@@ -321,7 +348,20 @@ export function MapCanvas({
                   <Image src={`/map/planets/${PLANET_IMAGES[planet]}`} alt={PLANET_NAMES[planet]} fill sizes="80px" className="object-contain" />
                 </div>
               )}
-              {row != null &&
+              {structures?.[hexKey(h.q, h.r)]?.map((piece, i, all) => (
+                <div
+                  key={`${piece.playerId}-${piece.buildingId}`}
+                  role="img"
+                  aria-label={structureName(piece.buildingId)}
+                  title={`${structureName(piece.buildingId)}${piece.fed ? ' (federation)' : ''}`}
+                  className="absolute pointer-events-auto"
+                  style={{
+                    ...structureStyle(piece.buildingId, spriteRows[piece.playerId] ?? 0, i, all.length),
+                    filter: piece.fed ? 'drop-shadow(0 0 4px #fff) drop-shadow(0 0 2px #fff)' : undefined,
+                  }}
+                />
+              ))}
+              {!structures && row != null &&
                 // Every building is always rendered where one can go, so placing,
                 // switching and removing them crossfades.
                 MAP_BUILDINGS.map((b) => (

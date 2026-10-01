@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import Link from 'next/link';
 import type { GameResult, PlayerResult, SearchRequest, StructureCondition, ResearchCondition, AdvancedTechCondition, StandardTechCondition, ArtifactCondition } from '@/types/game';
 import { RACE_NAMES, getFinalScoringName, getFinalScoringDisplayId, FINAL_SCORING_IMAGES, RESEARCH_TRACK_SHORT_NAMES, ArtifactType, getArtifactName, ARTIFACT_IMAGES } from '@/lib/gaia-constants';
 
@@ -170,6 +171,9 @@ export default function GameCard({ game, structureConditions = [], researchCondi
           >
             Watch BGA replay
           </a>
+          <Link href={`/game/${game.tableId}`} className="ml-4 text-sm font-semibold text-blue-600 hover:text-blue-800">
+            Map timeline
+          </Link>
         </div>
         {(game.finalScorings?.length > 0 || game.artifacts?.length > 0) && (
           <div className="flex items-center gap-4">
