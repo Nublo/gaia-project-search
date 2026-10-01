@@ -43,6 +43,11 @@ Example search queries:
   - Inner array indices 0-5 = tracks: Terraforming, Navigation, AI, Gaia Forming, Economy, Science
   - Includes initial race starting levels (e.g. Gleens start Navigation=1)
 
+**Game Replays Table** (`game_replays`): One row per game whose log has a replayable galaxy map
+- `table_id` (Int, PK, FK → games), `version` (`MAP_TIMELINE_VERSION` the row was built with)
+- `map_timeline` (JSONB) — compact `StoredMapTimeline` (`src/lib/map-timeline.ts`) shown by `/game/[tableId]`; written by `storeGame()`, sent to remote by `push-to-remote.ts`
+- Kept out of `games` so searches never load it (~2 KB per game)
+
 ### Key Implementation Notes
 
 **Re-parsing existing games**: `raw_game_log.rawLog.data.logs` contains the full BGA event stream, so most new fields can be backfilled from data already in the local database — never delete and re-collect from BGA to get a new field.

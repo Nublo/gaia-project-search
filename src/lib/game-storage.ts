@@ -1,5 +1,7 @@
+import type { Prisma } from '@prisma/client';
 import { prisma } from './db';
 import { ParsedGameData } from './game-parser';
+import { MAP_TIMELINE_VERSION, buildMapTimeline, encodeMapTimeline } from './map-timeline';
 
 /**
  * Store a parsed game and all its players in the database.
@@ -57,6 +59,15 @@ export async function storeGame(parsedGame: ParsedGameData) {
         })
       )
     );
+
+    // Galaxy map timeline for /game/[tableId]; logs without a map snapshot get no row.
+    const logs = parsedGame.rawLog?.data?.logs;
+    const timeline = Array.isArray(logs) ? buildMapTimeline(logs) : null;
+    if (timeline) {
+      await tx.gameReplay.create({
+        data: { tableId, version: MAP_TIMELINE_VERSION, mapTimeline: encodeMapTimeline(timeline) as unknown as Prisma.InputJsonValue },
+      });
+    }
 
     return { ...game, players };
   });

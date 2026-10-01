@@ -25,7 +25,6 @@ export interface MapChange {
 export interface MapStep {
   round: number; // 0 = setup (starting buildings), 1-6 = game rounds
   playerId: number | null;
-  label: string;
   changes: MapChange[];
 }
 
@@ -101,10 +100,10 @@ export function applyChanges(planets: PlanetMap, structures: StructureMap, chang
 
 // What a step did, from the piece it added or upgraded (or the planet it
 // changed), and whose it was when the notification doesn't say.
-function describe(changes: MapChange[], from: State, playerId: number | null): { label: string; playerId: number | null } {
+function describe(changes: MapChange[], from: StructureMap, playerId: number | null): { label: string; playerId: number | null } {
   const label = (text: string, owner = playerId) => ({ label: text, playerId: owner });
   for (const c of changes) {
-    const before = from.structures[c.hex] ?? [];
+    const before = from[c.hex] ?? [];
     const isNew = (s: MapStructure) => !before.some((b) => b.buildingId === s.buildingId && b.playerId === s.playerId);
     const added = c.structures?.find((s) => s.playerId === playerId && isNew(s)) ?? c.structures?.find(isNew);
     if (added) {
@@ -128,7 +127,7 @@ function layoutFor(hexes: string[]): MapLayoutKey | null {
   }) ?? null;
 }
 
-type BgaEvent = { type: string; args?: Record<string, unknown> & { map?: BgaMap } };
+type BgaEvent = { type: string; args?: Record<string, unknown> & { map?: BgaMap | unknown[] } };
 
 // Some notifications carry an empty `map` ([] or {}).
 const hasMap = (e: BgaEvent) => !!e.args?.map && !Array.isArray(e.args.map) && Object.keys(e.args.map).length > 0;
@@ -138,7 +137,7 @@ export function buildMapTimeline(logs: { data: BgaEvent[] }[]): MapTimeline | nu
   const first = events.find(hasMap);
   if (!first) return null;
 
-  const initial = readSnapshot(first.args!.map!);
+  const initial = readSnapshot(first.args!.map as BgaMap);
   const layoutKey = layoutFor(Object.keys(initial.planets));
   if (!layoutKey) {
     console.warn(`[map-timeline] no layout matches a ${Object.keys(initial.planets).length} hex map`);
@@ -159,7 +158,7 @@ export function buildMapTimeline(logs: { data: BgaEvent[] }[]): MapTimeline | nu
     let next: State | null = null;
 
     if (hasMap(e)) {
-      next = readSnapshot(args.map!);
+      next = readSnapshot(args.map as BgaMap);
     } else if ((e.type === 'notifyPlaceStartingBldg' || e.type === 'notifyUpgrade') && playerId != null) {
       const k = hexKey(Number(args.q), Number(args.r));
       const pieces = (state.structures[k] ?? []).filter((s) => s.playerId !== playerId || s.buildingId < 4);
@@ -178,7 +177,7 @@ export function buildMapTimeline(logs: { data: BgaEvent[] }[]): MapTimeline | nu
     }
     // Round 1 starts with the first action after the starting buildings.
     const stepRound = e.type === 'notifyPlaceStartingBldg' ? 0 : round + 1;
-    steps.push({ round: stepRound, ...describe(changes, state, playerId), changes });
+    steps.push({ round: stepRound, playerId: describe(changes, state.structures, playerId).playerId, changes });
     for (const c of changes) {
       if (c.planet != null) state.planets[c.hex] = c.planet;
     }
@@ -187,4 +186,82 @@ export function buildMapTimeline(logs: { data: BgaEvent[] }[]): MapTimeline | nu
 
   const planets: PlanetMap = Object.fromEntries(Object.entries(startPlanets).filter(([, t]) => t > 0));
   return { layoutKey, planets, steps };
+}
+
+// Caption of each step ("Mine", "Trading Station → Research Lab", …), derived
+// from the changes so they don't have to be stored.
+export function stepLabels(timeline: MapTimeline): string[] {
+  const planets = { ...timeline.planets };
+  const structures: StructureMap = {};
+  return timeline.steps.map((step) => {
+    const { label } = describe(step.changes, structures, step.playerId);
+    applyChanges(planets, structures, step.changes);
+    return label;
+  });
+}
+
+// ---- Stored form (game_replays.map_timeline) ----
+// Compact JSON: hexes as q, r numbers, players as indexes into `p`, pieces as
+// flat [buildingId, playerIndex, fed (0/1)] triples. Bump the version when
+// the format or the timeline logic changes, so stored rows can be rebuilt.
+
+export const MAP_TIMELINE_VERSION = 1;
+
+// [q, r, new planet type or null, flat piece triples (omitted = unchanged, [] = none left)]
+type StoredChange = [number, number, number | null] | [number, number, number | null, number[]];
+// [round, player index (-1 = none), changes]
+type StoredStep = [number, number, StoredChange[]];
+
+export interface StoredMapTimeline {
+  l: MapLayoutKey;
+  p: number[]; // BGA player ids
+  m: number[]; // starting planets as flat q, r, planetType triples
+  s: StoredStep[];
+}
+
+const parseHex = (k: string) => k.split(',').map(Number) as [number, number];
+
+export function encodeMapTimeline(t: MapTimeline): StoredMapTimeline {
+  const players: number[] = [];
+  const index = (id: number | null) => {
+    if (id == null) return -1;
+    if (!players.includes(id)) players.push(id);
+    return players.indexOf(id);
+  };
+  const steps: StoredStep[] = t.steps.map((step) => [
+    step.round,
+    index(step.playerId),
+    step.changes.map((c): StoredChange => {
+      const [q, r] = parseHex(c.hex);
+      if (!c.structures) return [q, r, c.planet ?? null];
+      return [q, r, c.planet ?? null, c.structures.flatMap((s) => [s.buildingId, index(s.playerId), s.fed ? 1 : 0])];
+    }),
+  ]);
+  return {
+    l: t.layoutKey,
+    p: players,
+    m: Object.entries(t.planets).flatMap(([k, type]) => [...parseHex(k), type]),
+    s: steps,
+  };
+}
+
+export function decodeMapTimeline(stored: StoredMapTimeline): MapTimeline {
+  const planets: PlanetMap = {};
+  for (let i = 0; i < stored.m.length; i += 3) planets[hexKey(stored.m[i], stored.m[i + 1])] = stored.m[i + 2];
+  const steps: MapStep[] = stored.s.map(([round, player, changes]) => ({
+    round,
+    playerId: player < 0 ? null : stored.p[player],
+    changes: changes.map(([q, r, planet, pieces]) => {
+      const change: MapChange = { hex: hexKey(q, r) };
+      if (planet != null) change.planet = planet;
+      if (pieces) {
+        change.structures = [];
+        for (let i = 0; i < pieces.length; i += 3) {
+          change.structures.push({ buildingId: pieces[i], playerId: stored.p[pieces[i + 1]], fed: pieces[i + 2] === 1 });
+        }
+      }
+      return change;
+    }),
+  }));
+  return { layoutKey: stored.l, planets, steps };
 }

@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { MapCanvas } from '@/components/GalaxyMap';
 import { RACE_IMAGE_FILES } from '@/components/SearchCriteriaSummary';
 import { raceSpriteRow } from '@/lib/galaxy-map';
-import { applyChanges, type MapTimeline, type StructureMap } from '@/lib/map-timeline';
+import { applyChanges, stepLabels, type MapTimeline, type StructureMap } from '@/lib/map-timeline';
 
 interface Player {
   playerId: number;
@@ -22,7 +22,8 @@ const ROW_COLORS = ['#5b74d6', '#d4c21a', '#9a7454', '#d23a5c', '#ec7d12', '#8a8
 // `actions` sits at the right end of the players row.
 export default function GameMapTimeline({ timeline, players, actions }: { timeline: MapTimeline; players: Player[]; actions?: ReactNode }) {
   const { steps } = timeline;
-  const [pos, setPos] = useState(steps.length);
+  // Opens at the end of setup: starting buildings placed, round 1 not begun.
+  const [pos, setPos] = useState(() => steps.filter((s) => s.round === 0).length);
 
   // Map after each number of steps (frames[0] = empty board).
   const frames = useMemo(() => {
@@ -36,6 +37,7 @@ export default function GameMapTimeline({ timeline, players, actions }: { timeli
     return out;
   }, [timeline, steps]);
 
+  const labels = useMemo(() => stepLabels(timeline), [timeline]);
   const byId = useMemo(() => new Map(players.map((p) => [p.playerId, p])), [players]);
   const spriteRows = useMemo(() => Object.fromEntries(players.map((p) => [p.playerId, raceSpriteRow(p.raceId)])), [players]);
 
@@ -112,7 +114,7 @@ export default function GameMapTimeline({ timeline, players, actions }: { timeli
               value={pos}
               onChange={(e) => go(Number(e.target.value))}
               aria-label="Game timeline"
-              aria-valuetext={step ? `Step ${pos}: ${step.label}` : 'Empty map'}
+              aria-valuetext={step ? `Step ${pos}: ${labels[pos - 1]}` : 'Empty map'}
               className="w-full accent-blue-500"
             />
             {roundStarts.map(({ round, pos: p }) => (
@@ -152,7 +154,7 @@ export default function GameMapTimeline({ timeline, players, actions }: { timeli
                   {player.playerName}:
                 </span>
               )}
-              {step.label}
+              {labels[pos - 1]}
             </>
           )}
         </p>

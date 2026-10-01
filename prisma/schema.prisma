@@ -21,6 +21,7 @@ model Game {
   isLostFleet   Boolean  @default(false) @map("is_lost_fleet")
   rawGameLog    Json     @map("raw_game_log")
   players       Player[]
+  replay        GameReplay?
 
   @@index([winnerName])
   @@index([playerCount])
@@ -70,6 +71,16 @@ model Player {
   @@index([totalScoredPoints])
   @@index([factionCost])
   @@map("players")
+}
+
+// Replay data of a game, kept apart from `games` so searches never load it.
+model GameReplay {
+  tableId     Int  @id @map("table_id")
+  version     Int // MAP_TIMELINE_VERSION the row was built with
+  mapTimeline Json @map("map_timeline") // StoredMapTimeline (lib/map-timeline.ts)
+  game        Game @relation(fields: [tableId], references: [tableId], onDelete: Cascade)
+
+  @@map("game_replays")
 }
 
 model PlayerCollectionState {

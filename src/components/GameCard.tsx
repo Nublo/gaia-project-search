@@ -163,17 +163,17 @@ export default function GameCard({ game, structureConditions = [], researchCondi
     <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
       <div className="flex justify-between items-start mb-4">
         <div>
+          <Link href={`/game/${game.tableId}`} className="text-xl font-semibold text-blue-600 hover:text-blue-800">
+            Map timeline
+          </Link>
           <a
             href={`https://boardgamearena.com/table?table=${game.tableId}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xl font-semibold text-blue-600 hover:text-blue-800"
+            className="ml-6 text-xl font-semibold text-blue-600 hover:text-blue-800"
           >
-            Watch BGA replay
+            BGA replay
           </a>
-          <Link href={`/game/${game.tableId}`} className="ml-4 text-sm font-semibold text-blue-600 hover:text-blue-800">
-            Map timeline
-          </Link>
         </div>
         {(game.finalScorings?.length > 0 || game.artifacts?.length > 0) && (
           <div className="flex items-center gap-4">

@@ -2,27 +2,24 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import GameMapTimeline from '@/components/GameMapTimeline';
 import { prisma } from '@/lib/db';
-import { buildMapTimeline } from '@/lib/map-timeline';
+import { decodeMapTimeline, type StoredMapTimeline } from '@/lib/map-timeline';
 import { getRaceName } from '@/lib/gaia-constants';
 
 export const metadata: Metadata = {
   title: 'Game Map',
 };
 
-// A stored game's galaxy map, replayable step by step. The timeline is rebuilt
-// from raw_game_log, which only the local database keeps.
+// A stored game's galaxy map, replayable step by step, from its game_replays row.
 export default async function GamePage({ params }: { params: Promise<{ tableId: string }> }) {
   const tableId = Number((await params).tableId);
   if (!Number.isInteger(tableId)) notFound();
   const game = await prisma.game.findUnique({
     where: { tableId },
-    select: { rawGameLog: true, players: { select: { playerId: true, playerName: true, raceId: true} } },
+    select: { replay: { select: { mapTimeline: true } }, players: { select: { playerId: true, playerName: true, raceId: true} } },
   });
   if (!game) notFound();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const logs = (game.rawGameLog as any)?.rawLog?.data?.logs;
-  const timeline = Array.isArray(logs) ? buildMapTimeline(logs) : null;
+  const timeline = game.replay ? decodeMapTimeline(game.replay.mapTimeline as unknown as StoredMapTimeline) : null;
 
   const bgaLink = (
     <a
