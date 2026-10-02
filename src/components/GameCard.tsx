@@ -1,5 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import type { GameResult, PlayerResult, SearchRequest, StructureCondition, ResearchCondition, AdvancedTechCondition, StandardTechCondition, ArtifactCondition } from '@/types/game';
 import { RACE_NAMES, getFinalScoringName, getFinalScoringDisplayId, FINAL_SCORING_IMAGES, RESEARCH_TRACK_SHORT_NAMES, ArtifactType, getArtifactName, ARTIFACT_IMAGES } from '@/lib/gaia-constants';
 
@@ -162,18 +163,23 @@ export default function GameCard({ game, structureConditions = [], researchCondi
   return (
     <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
       <div className="flex justify-between items-start mb-4">
-        <div>
-          <Link href={`/game/${game.tableId}`} className="text-xl font-semibold text-blue-600 hover:text-blue-800">
-            Map timeline
-          </Link>
-          <a
-            href={`https://boardgamearena.com/table?table=${game.tableId}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="ml-6 text-xl font-semibold text-blue-600 hover:text-blue-800"
-          >
-            BGA replay
-          </a>
+        {/* Icons only for what the game has: its board setup (which includes the
+            timeline slider) or else its map timeline, then BGA. */}
+        <div className="flex gap-2">
+          {game.hasSetup ? (
+            <IconLink href={`/game-setup?table=${game.tableId}`} label="Board setup" tooltip="Board setup with map timeline">
+              <SetupIcon />
+            </IconLink>
+          ) : (
+            game.hasTimeline && (
+              <IconLink href={`/timeline/${game.tableId}`} label="Map timeline" tooltip="Map timeline">
+                <TimelineIcon />
+              </IconLink>
+            )
+          )}
+          <IconLink href={`https://boardgamearena.com/table?table=${game.tableId}`} label="Board Game Arena" tooltip="Open on Board Game Arena" external>
+            <BgaIcon />
+          </IconLink>
         </div>
         {(game.finalScorings?.length > 0 || game.artifacts?.length > 0) && (
           <div className="flex items-center gap-4">
@@ -299,5 +305,66 @@ export default function GameCard({ game, structureConditions = [], researchCondi
         })}
       </div>
     </div>
+  );
+}
+
+// Square icon button with a tooltip above it (on hover and keyboard focus).
+function IconLink({ href, label, tooltip, external = false, children }: { href: string; label: string; tooltip: string; external?: boolean; children: ReactNode }) {
+  const className =
+    'flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600 transition-colors hover:bg-blue-100 hover:text-blue-800';
+  return (
+    <span className="group relative">
+      {external ? (
+        <a href={href} target="_blank" rel="noopener noreferrer" aria-label={label} className={className}>
+          {children}
+        </a>
+      ) : (
+        <Link href={href} aria-label={label} className={className}>
+          {children}
+        </Link>
+      )}
+      <span
+        role="tooltip"
+        className="pointer-events-none absolute bottom-full left-0 z-10 mb-2 whitespace-nowrap rounded bg-gray-900 px-2 py-1 text-xs font-medium text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+      >
+        {tooltip}
+      </span>
+    </span>
+  );
+}
+
+const ICON_PROPS = { width: 22, height: 22, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true } as const;
+
+// Uneven panels, like the setup page: map beside the boards.
+function SetupIcon() {
+  return (
+    <svg {...ICON_PROPS}>
+      <rect x="3" y="3" width="9" height="11" rx="1.5" />
+      <rect x="14" y="3" width="7" height="6" rx="1.5" />
+      <rect x="14" y="11" width="7" height="10" rx="1.5" />
+      <rect x="3" y="16" width="9" height="5" rx="1.5" />
+    </svg>
+  );
+}
+
+// A clock with a back arrow: step back through the game.
+function TimelineIcon() {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+      <path d="M3 3v5h5" />
+      <path d="M12 7v5l3 2" />
+    </svg>
+  );
+}
+
+// External link: the game's table on Board Game Arena.
+function BgaIcon() {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M14 4h6v6" />
+      <path d="M20 4 11 13" />
+      <path d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4" />
+    </svg>
   );
 }

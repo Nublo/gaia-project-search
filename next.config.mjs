@@ -11,6 +11,8 @@ const nextConfig = {
     return [
       { source: '/auction-rules/3p', destination: '/auction-rules/3-4p', permanent: true },
       { source: '/auction-rules/4p', destination: '/auction-rules/3-4p', permanent: true },
+      // A game's map timeline moved from /game/<id>.
+      { source: '/game/:tableId', destination: '/timeline/:tableId', permanent: true },
     ];
   },
 };

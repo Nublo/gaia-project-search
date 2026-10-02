@@ -11,6 +11,8 @@ export interface GameResult {
   isComplete: boolean;
   isAuction: boolean;
   isLostFleet: boolean;
+  hasTimeline?: boolean; // has a game_replays row (galaxy map timeline)
+  hasSetup?: boolean; // ...with the full board setup (Lost Fleet)
   players: PlayerResult[];
 }
 

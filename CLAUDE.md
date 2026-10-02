@@ -45,7 +45,8 @@ Example search queries:
 
 **Game Replays Table** (`game_replays`): One row per game whose log has a replayable galaxy map
 - `table_id` (Int, PK, FK → games), `version` (`MAP_TIMELINE_VERSION` the row was built with)
-- `map_timeline` (JSONB) — compact `StoredMapTimeline` (`src/lib/map-timeline.ts`) shown by `/game/[tableId]`; written by `storeGame()`, sent to remote by `push-to-remote.ts`
+- `map_timeline` (JSONB) — compact `StoredMapTimeline` (`src/lib/map-timeline.ts`) shown by `/timeline/[tableId]`; written by `storeGame()`, sent to remote by `push-to-remote.ts`
+- `setup` (JSONB, nullable) — Lost Fleet games only: `StoredBoardSetup` (`src/lib/board-setup.ts`) — techs, scoring tiles, boosters, ships, factions in seat order — rebuilt from the log's `board` snapshots; shown by `/game-setup?table=<id>` (which falls back to `/timeline/<id>` without it); written by `storeGame()`, sent to remote by `push-to-remote.ts`
 - Kept out of `games` so searches never load it (~2 KB per game)
 
 ### Key Implementation Notes

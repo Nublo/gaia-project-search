@@ -1,13 +1,13 @@
 'use client';
 
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState } from 'react';
 import Image from 'next/image';
 import { MapCanvas } from '@/components/GalaxyMap';
 import { RACE_IMAGE_FILES } from '@/components/SearchCriteriaSummary';
 import { raceSpriteRow } from '@/lib/galaxy-map';
 import { applyChanges, stepLabels, type MapTimeline, type StructureMap } from '@/lib/map-timeline';
 
-interface Player {
+export interface TimelinePlayer {
   playerId: number;
   playerName: string;
   raceId: number;
@@ -17,45 +17,22 @@ interface Player {
 // Faction color swatches, one per structures sprite row.
 const ROW_COLORS = ['#5b74d6', '#d4c21a', '#9a7454', '#d23a5c', '#ec7d12', '#8a8a8a', '#cfd6dc', '#d07ab8', '#3fd3e6'];
 
-// Galaxy map of a stored game with a slider over its timeline: far left is
-// the empty board, far right the final position, one stop per map change.
-// `actions` sits at the right end of the players row.
-export default function GameMapTimeline({ timeline, players, actions }: { timeline: MapTimeline; players: Player[]; actions?: ReactNode }) {
-  const { steps } = timeline;
-  // Opens at the end of setup: starting buildings placed, round 1 not begun.
-  const [pos, setPos] = useState(() => steps.filter((s) => s.round === 0).length);
+export function BgaLink({ tableId }: { tableId: number }) {
+  return (
+    <a
+      href={`https://boardgamearena.com/table?table=${tableId}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="shrink-0 text-sm font-semibold px-4 py-2 rounded border border-slate-600 text-slate-200 hover:bg-slate-800 transition-colors"
+    >
+      Open on BGA
+    </a>
+  );
+}
 
-  // Map after each number of steps (frames[0] = empty board).
-  const frames = useMemo(() => {
-    const planets = { ...timeline.planets };
-    const structures: StructureMap = {};
-    const out = [{ planets: { ...planets }, structures: { ...structures } }];
-    for (const step of steps) {
-      applyChanges(planets, structures, step.changes);
-      out.push({ planets: { ...planets }, structures: { ...structures } });
-    }
-    return out;
-  }, [timeline, steps]);
-
-  const labels = useMemo(() => stepLabels(timeline), [timeline]);
-  const byId = useMemo(() => new Map(players.map((p) => [p.playerId, p])), [players]);
-  const spriteRows = useMemo(() => Object.fromEntries(players.map((p) => [p.playerId, raceSpriteRow(p.raceId)])), [players]);
-
-  // First step of each round, for the ticks under the slider.
-  const roundStarts = useMemo(() => {
-    const starts: { round: number; pos: number }[] = [];
-    steps.forEach((s, i) => {
-      if (s.round > 0 && s.round !== steps[i - 1]?.round) starts.push({ round: s.round, pos: i + 1 });
-    });
-    return starts;
-  }, [steps]);
-
-  const step = pos > 0 ? steps[pos - 1] : null;
-  const player = step?.playerId != null ? byId.get(step.playerId) : undefined;
-  const frame = frames[pos];
-  const go = (p: number) => setPos(Math.max(0, Math.min(steps.length, p)));
-  const pct = (p: number) => (steps.length ? (p / steps.length) * 100 : 0);
-
+// /timeline/[tableId]: the players row, with the BGA link at its right end,
+// above the timeline map.
+export default function GameMapTimeline({ timeline, players, tableId }: { timeline: MapTimeline; players: TimelinePlayer[]; tableId: number }) {
   return (
     <section className="rounded-lg bg-slate-900 p-3 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -78,9 +55,54 @@ export default function GameMapTimeline({ timeline, players, actions }: { timeli
             </li>
           ))}
         </ul>
-        {actions}
+        <BgaLink tableId={tableId} />
       </div>
+      <TimelineMap timeline={timeline} players={players} />
+    </section>
+  );
+}
 
+// Galaxy map of a stored game with a slider over its timeline: far left is
+// the empty board, far right the final position, one stop per map change.
+export function TimelineMap({ timeline, players, className = '' }: { timeline: MapTimeline; players: TimelinePlayer[]; className?: string }) {
+  const { steps } = timeline;
+  // Opens at the end of setup: starting buildings placed, round 1 not begun.
+  const [pos, setPos] = useState(() => steps.filter((s) => s.round === 0).length);
+
+  // Map after each number of steps (frames[0] = empty board).
+  const frames = useMemo(() => {
+    const planets = { ...timeline.planets };
+    const structures: StructureMap = {};
+    const out = [{ planets: { ...planets }, structures: { ...structures } }];
+    for (const step of steps) {
+      applyChanges(planets, structures, step.changes);
+      out.push({ planets: { ...planets }, structures: { ...structures } });
+    }
+    return out;
+  }, [timeline, steps]);
+
+  const labels = useMemo(() => stepLabels(timeline), [timeline]);
+  const byId = useMemo(() => new Map(players.map((p) => [p.playerId, p])), [players]);
+  const spriteRows = useMemo(() => Object.fromEntries(players.map((p) => [p.playerId, raceSpriteRow(p.raceId)])), [players]);
+
+  // Start of each round, for the ticks under the slider: the position just
+  // before the round's first step, so none of its actions are shown yet.
+  const roundStarts = useMemo(() => {
+    const starts: { round: number; pos: number }[] = [];
+    steps.forEach((s, i) => {
+      if (s.round > 0 && s.round !== steps[i - 1]?.round) starts.push({ round: s.round, pos: i });
+    });
+    return starts;
+  }, [steps]);
+
+  const step = pos > 0 ? steps[pos - 1] : null;
+  const player = step?.playerId != null ? byId.get(step.playerId) : undefined;
+  const frame = frames[pos];
+  const go = (p: number) => setPos(Math.max(0, Math.min(steps.length, p)));
+  const pct = (p: number) => (steps.length ? (p / steps.length) * 100 : 0);
+
+  return (
+    <div className={`space-y-3 ${className}`}>
       <MapCanvas
         layoutKey={timeline.layoutKey}
         planets={frame.planets}
@@ -159,6 +181,6 @@ export default function GameMapTimeline({ timeline, players, actions }: { timeli
           )}
         </p>
       </div>
-    </section>
+    </div>
   );
 }

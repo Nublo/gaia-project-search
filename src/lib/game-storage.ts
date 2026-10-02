@@ -2,6 +2,7 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from './db';
 import { ParsedGameData } from './game-parser';
 import { MAP_TIMELINE_VERSION, buildMapTimeline, encodeMapTimeline } from './map-timeline';
+import { buildBoardSetup } from './board-setup';
 
 /**
  * Store a parsed game and all its players in the database.
@@ -60,12 +61,19 @@ export async function storeGame(parsedGame: ParsedGameData) {
       )
     );
 
-    // Galaxy map timeline for /game/[tableId]; logs without a map snapshot get no row.
+    // Galaxy map timeline for /timeline/[tableId], plus the board setup for
+    // /game-setup (Lost Fleet only); logs without a map snapshot get no row.
     const logs = parsedGame.rawLog?.data?.logs;
     const timeline = Array.isArray(logs) ? buildMapTimeline(logs) : null;
     if (timeline) {
+      const setup = buildBoardSetup(logs);
       await tx.gameReplay.create({
-        data: { tableId, version: MAP_TIMELINE_VERSION, mapTimeline: encodeMapTimeline(timeline) as unknown as Prisma.InputJsonValue },
+        data: {
+          tableId,
+          version: MAP_TIMELINE_VERSION,
+          mapTimeline: encodeMapTimeline(timeline) as unknown as Prisma.InputJsonValue,
+          setup: (setup ?? undefined) as unknown as Prisma.InputJsonValue | undefined,
+        },
       });
     }
 

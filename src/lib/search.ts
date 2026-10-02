@@ -429,7 +429,7 @@ export async function searchGames(req: SearchRequest): Promise<SearchGamesResult
     const gamesById = new Map(gamesData.map((g) => [g.tableId, g]));
     const games = sortedIds.map((id) => gamesById.get(id)).filter((g): g is NonNullable<typeof g> => g != null);
 
-    return { games: addRaceNames(games) as GameResult[], queryMs: Math.round(performance.now() - dbStart) };
+    return { games: await withReplayInfo(addRaceNames(games) as GameResult[]), queryMs: Math.round(performance.now() - dbStart) };
   }
 
   const games = await prisma.game.findMany({
@@ -439,7 +439,7 @@ export async function searchGames(req: SearchRequest): Promise<SearchGamesResult
     orderBy: { tableId: 'desc' },
   });
 
-  return { games: addRaceNames(games) as GameResult[], queryMs: Math.round(performance.now() - dbStart) };
+  return { games: await withReplayInfo(addRaceNames(games) as GameResult[]), queryMs: Math.round(performance.now() - dbStart) };
 }
 
 const LEADERBOARD_COLUMNS = {
@@ -455,6 +455,18 @@ export interface LeaderboardSection {
   category: LeaderboardCategory;
   label: string;
   games: GameResult[];
+}
+
+// Which games have a stored map timeline and board setup (game_replays), for
+// the result cards' Timeline link. Reads only whether `setup` is set, not the JSON.
+async function withReplayInfo<T extends { tableId: number }>(games: T[]): Promise<(T & { hasTimeline: boolean; hasSetup: boolean })[]> {
+  if (games.length === 0) return [];
+  const rows = await prisma.$queryRaw<{ table_id: number; has_setup: boolean }[]>`
+    SELECT table_id, setup IS NOT NULL AS has_setup FROM game_replays
+    WHERE table_id = ANY(${games.map((g) => g.tableId)}::int[])
+  `;
+  const hasSetup = new Map(rows.map((r) => [Number(r.table_id), r.has_setup]));
+  return games.map((g) => ({ ...g, hasTimeline: hasSetup.has(g.tableId), hasSetup: hasSetup.get(g.tableId) ?? false }));
 }
 
 export async function getLeaderboardGames(limit = 3, isLostFleet = false): Promise<LeaderboardSection[]> {
@@ -524,7 +536,7 @@ export async function getLeaderboardGames(limit = 3, isLostFleet = false): Promi
         .map((id) => gamesById.get(id))
         .filter((g): g is NonNullable<typeof g> => g != null);
 
-      return { category: key, label, games: addRaceNamesLocal(games) as GameResult[] };
+      return { category: key, label, games: await withReplayInfo(addRaceNamesLocal(games) as GameResult[]) };
     })
   );
 
