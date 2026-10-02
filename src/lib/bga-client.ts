@@ -6,6 +6,18 @@ export interface BGAClientOptions {
   slowMo?: number;
 }
 
+// What a BGA replay page exposes on window (see getGameReplay).
+interface ReplayWindow {
+  g_gamelogs?: unknown[];
+  gameui?: {
+    gamedatas?: {
+      board?: unknown;
+      playerList?: (string | number)[];
+      players?: Record<string, { name?: string; color?: string; avatar?: string }>;
+    };
+  };
+}
+
 export class BGAClient {
   private session: BGASession;
   private baseUrl = 'https://boardgamearena.com';
@@ -356,6 +368,61 @@ export class BGAClient {
       console.error('[BGAClient] Failed to fetch game log:', error);
       throw error;
     }
+  }
+
+  /**
+   * Fetch a game from its replay page: the full notification log (window.g_gamelogs,
+   * identical to logs.html's data.logs) plus the starting board setup
+   * (gameui.gamedatas.board), which logs.html doesn't have. Returns the log in
+   * logs.html's shape, with data.players rebuilt from gamedatas.
+   *
+   * A daily-limit page throws an error mentioning "You have reached a limit"; other
+   * failures avoid that wording (and the word "replay"), so callers can fall back
+   * to getGameLog() without mistaking them for the limit.
+   */
+  async getGameReplay(tableId: string): Promise<{ log: GetGameLogResponse; board: unknown }> {
+    if (!this.isLoggedIn() || !this.apiPage) {
+      throw new Error('Not logged in. Call login() first.');
+    }
+    console.log(`[BGAClient] Fetching game archive page for table_id=${tableId}`);
+    const page = this.apiPage;
+
+    const failure = async (what: string) => {
+      const text = await page.locator('body').innerText().catch(() => '');
+      if (/reached a limit/i.test(text)) return new Error(`You have reached a limit (archive page for table ${tableId})`);
+      return new Error(`${what} for table ${tableId}`);
+    };
+
+    // The review page renders the link to the archived game client-side.
+    await this.navigateTo(`${this.baseUrl}/gamereview?table=${tableId}`);
+    const link = page.locator('a[href*="archive/replay"]').first();
+    try {
+      await link.waitFor({ timeout: 20000 });
+    } catch {
+      throw await failure('No archive link on the game review page');
+    }
+    const href = await link.getAttribute('href');
+    await page.goto(new URL(href!, this.baseUrl).toString(), { waitUntil: 'load' });
+    try {
+      await page.waitForFunction(() => {
+        const w = window as unknown as ReplayWindow;
+        return !!(w.gameui?.gamedatas?.board && w.g_gamelogs);
+      }, null, { timeout: 30000 });
+    } catch {
+      throw await failure('Game data did not load on the archive page');
+    }
+
+    const { logs, board, players } = await page.evaluate(() => {
+      const w = window as unknown as ReplayWindow;
+      const gamedatas = w.gameui!.gamedatas!;
+      const players = (gamedatas.playerList || []).map((id: string | number) => {
+        const p = gamedatas.players?.[id] || {};
+        return { id: Number(id), name: p.name, color: p.color ? `#${String(p.color).replace(/^#/, '')}` : undefined, avatar: p.avatar };
+      });
+      return { logs: w.g_gamelogs as unknown[], board: gamedatas.board, players };
+    });
+    console.log(`[BGAClient] Read ${logs.length} log packets and the starting board`);
+    return { log: { status: 1, data: { logs, players } }, board };
   }
 
   /**

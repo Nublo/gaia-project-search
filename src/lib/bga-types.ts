@@ -85,6 +85,9 @@ export interface GetGameLogResponse {
     logs: any[]; // Array of log entries (structure TBD)
     [key: string]: any; // Other fields we'll discover
   };
+  // Not from logs.html: the starting board (gameui.gamedatas.board) when the game
+  // was read from its replay page, kept with the log as rawLog.gamedatas.board.
+  gamedatas?: { board?: unknown };
 }
 
 export interface TableInfoPlayerResult {

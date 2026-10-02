@@ -1,7 +1,8 @@
-// Board setup of a stored Lost Fleet game (techs, scoring tiles, boosters,
-// ships, factions), rebuilt from its BGA log for /game-setup. Lost Fleet logs
-// repeat BGA's `gamedatas.board` in notifyUpdate events (base-game logs almost
-// never do); its fields map onto /builder slots as in bga-bookmarklet.ts.
+// Board setup of a stored game (techs, scoring tiles, boosters, ships,
+// factions) for /game-setup, from BGA's `gamedatas.board`: either the starting
+// board read off the game's replay page, or, for Lost Fleet, the copies its log
+// repeats in notifyUpdate events (base-game logs almost never have one). Its
+// fields map onto /builder slots as in bga-bookmarklet.ts.
 import { BUILDER_GROUPS, type SlotRows } from '@/lib/builder-groups';
 import { MINE, PLANETARY_INSTITUTE, mapLayoutKey, type BuildingMap } from '@/lib/galaxy-map';
 import type { Setup } from '@/lib/builder-params';
@@ -22,7 +23,7 @@ interface BgaShip {
   availArtifacts?: (number | string)[];
 }
 
-interface BgaBoard {
+export interface BgaBoard {
   techs: (number | string)[];
   advTechs?: (number | string)[];
   roundBonus?: (number | string)[];
@@ -61,12 +62,15 @@ function boardSlots(board: BgaBoard): Record<string, (number | null)[]> {
   return slots;
 }
 
-export function buildBoardSetup(logs: { data: BgaEvent[] }[]): StoredBoardSetup | null {
+// `startBoard` is the replay page's starting board; without it only Lost Fleet
+// logs carry a board.
+export function buildBoardSetup(logs: { data: BgaEvent[] }[], startBoard?: BgaBoard): StoredBoardSetup | null {
   const events = logs.flatMap((packet) => packet.data ?? []);
-  const boards = events
+  const logBoards = events
     .map((e) => e.args?.board as BgaBoard | undefined)
     .filter((b): b is BgaBoard => !!b && Array.isArray(b.techs));
-  if (!boards.length || !Number(boards[0].config?.lostFleet)) return null;
+  if (!startBoard && (!logBoards.length || !Number(logBoards[0].config?.lostFleet))) return null;
+  const boards = startBoard ? [startBoard, ...logBoards] : logBoards;
 
   // Tiles keep their value after being taken, but take each slot's first
   // non-empty value across snapshots in case an early one has gaps.
@@ -83,8 +87,9 @@ export function buildBoardSetup(logs: { data: BgaEvent[] }[]): StoredBoardSetup 
     for (let i = 0; i < row.length; i++) row[i] ??= null; // fill sparse ship slots
   }
 
-  // The first snapshot is usually from round 1, after the booster draft, so
-  // the full set is every booster ever on offer plus every one picked.
+  // A Lost Fleet log's first snapshot is usually from round 1, after the
+  // booster draft, so the full set is every booster ever on offer plus every
+  // one picked (the replay's starting board has them all).
   const boosters = new Set<number>();
   for (const board of boards) for (const id of board.availBoosters ?? []) if (tile(id)) boosters.add(Number(id));
   for (const e of events) if (e.type === 'notifyChooseBoosterTile' && tile(e.args?.boosterId)) boosters.add(Number(e.args!.boosterId));
@@ -106,7 +111,7 @@ export function buildBoardSetup(logs: { data: BgaEvent[] }[]): StoredBoardSetup 
 
 // A /builder Setup from a stored board setup and the game's map timeline: the
 // map's starting planets plus the mines / Planetary Institutes placed in setup.
-export function boardSetupToSetup(stored: StoredBoardSetup, timeline: MapTimeline, players: number): Setup {
+export function boardSetupToSetup(stored: StoredBoardSetup, timeline: MapTimeline, players: number, lostFleet: boolean): Setup {
   const slots: SlotRows = Object.fromEntries(
     BUILDER_GROUPS.map((g) => {
       const row = stored.slots[g.param] ?? [];
@@ -123,11 +128,11 @@ export function boardSetupToSetup(stored: StoredBoardSetup, timeline: MapTimelin
   }
   return {
     players,
-    lostFleet: true,
+    lostFleet,
     slots,
     planets: timeline.planets,
     buildings,
-    largeMap: timeline.layoutKey === mapLayoutKey(players, false, true),
+    largeMap: !lostFleet && timeline.layoutKey === mapLayoutKey(players, false, true),
     vpRequirement: stored.vpRequirement,
     races: stored.races,
   };

@@ -78,7 +78,7 @@ model GameReplay {
   tableId     Int  @id @map("table_id")
   version     Int // MAP_TIMELINE_VERSION the row was built with
   mapTimeline Json @map("map_timeline") // StoredMapTimeline (lib/map-timeline.ts)
-  setup       Json? // StoredBoardSetup (lib/board-setup.ts); Lost Fleet games only
+  setup       Json? // StoredBoardSetup (lib/board-setup.ts); games with a stored starting board
   game        Game @relation(fields: [tableId], references: [tableId], onDelete: Cascade)
 
   @@map("game_replays")

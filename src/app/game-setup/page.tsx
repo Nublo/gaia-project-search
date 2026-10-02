@@ -44,14 +44,15 @@ export default async function GameSetupPage({ searchParams }: { searchParams: Pr
   );
 }
 
-// A stored game without a complete setup (no board in its log, e.g. base
-// games) falls back to its map timeline at /timeline/<id>.
+// A stored game without a complete setup (no board stored for it, e.g. most
+// base games) falls back to its map timeline at /timeline/<id>.
 async function StoredGameSetup({ tableId }: { tableId: number }) {
   if (!Number.isInteger(tableId)) redirect('/');
   const game = await prisma.game.findUnique({
     where: { tableId },
     select: {
       playerCount: true,
+      isLostFleet: true,
       replay: { select: { mapTimeline: true, setup: true } },
       players: { select: { playerId: true, playerName: true, raceId: true } },
     },
@@ -60,7 +61,7 @@ async function StoredGameSetup({ tableId }: { tableId: number }) {
   if (!game?.replay?.setup || !(PLAYER_COUNTS as readonly number[]).includes(game.playerCount)) redirect(`/timeline/${tableId}`);
 
   const timeline = decodeMapTimeline(game.replay.mapTimeline as unknown as StoredMapTimeline);
-  const setup = boardSetupToSetup(game.replay.setup as unknown as StoredBoardSetup, timeline, game.playerCount);
+  const setup = boardSetupToSetup(game.replay.setup as unknown as StoredBoardSetup, timeline, game.playerCount, game.isLostFleet);
   const planets = setupPlanets(setup);
   if (validateSetup({ ...setup, planets }).length > 0) redirect(`/timeline/${tableId}`);
 

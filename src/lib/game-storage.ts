@@ -2,7 +2,7 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from './db';
 import { ParsedGameData } from './game-parser';
 import { MAP_TIMELINE_VERSION, buildMapTimeline, encodeMapTimeline } from './map-timeline';
-import { buildBoardSetup } from './board-setup';
+import { buildBoardSetup, type BgaBoard } from './board-setup';
 
 /**
  * Store a parsed game and all its players in the database.
@@ -62,11 +62,13 @@ export async function storeGame(parsedGame: ParsedGameData) {
     );
 
     // Galaxy map timeline for /timeline/[tableId], plus the board setup for
-    // /game-setup (Lost Fleet only); logs without a map snapshot get no row.
+    // /game-setup: from the replay page's starting board (rawLog.gamedatas.board)
+    // when the game was fetched from there, else from a Lost Fleet log's own
+    // board copies. Logs without a map snapshot get no row.
     const logs = parsedGame.rawLog?.data?.logs;
     const timeline = Array.isArray(logs) ? buildMapTimeline(logs) : null;
     if (timeline) {
-      const setup = buildBoardSetup(logs);
+      const setup = buildBoardSetup(logs, parsedGame.rawLog?.gamedatas?.board);
       await tx.gameReplay.create({
         data: {
           tableId,
@@ -81,6 +83,45 @@ export async function storeGame(parsedGame: ParsedGameData) {
   });
 
   return result;
+}
+
+/**
+ * What collection still needs for a game: 'missing' (not stored), 'board' (stored,
+ * but without the replay page's starting board or a board setup), or 'done'.
+ * A game counts as done once rawLog.gamedatas.board is stored, even when no
+ * setup could be built from it (no map timeline, solo games) or it is null (the
+ * replay page wasn't available), so each game's replay page is fetched once.
+ */
+export async function gameCollectionState(tableId: number): Promise<'missing' | 'board' | 'done'> {
+  const [row] = await prisma.$queryRaw<{ has_board: boolean; has_setup: boolean }[]>`
+    SELECT g.raw_game_log->'rawLog'->'gamedatas' ? 'board' AS has_board, r.setup IS NOT NULL AS has_setup
+    FROM games g LEFT JOIN game_replays r ON r.table_id = g.table_id
+    WHERE g.table_id = ${tableId}
+  `;
+  if (!row) return 'missing';
+  return row.has_board || row.has_setup ? 'done' : 'board';
+}
+
+/**
+ * Store the starting board read off an already-stored game's replay page: raw,
+ * next to its log (raw_game_log.rawLog.gamedatas.board), and as its board setup
+ * when the game has a map timeline row. Returns whether a setup was stored.
+ */
+export async function storeStartBoard(tableId: number, board: unknown): Promise<boolean> {
+  await prisma.$executeRaw`
+    UPDATE games SET raw_game_log = jsonb_set(raw_game_log, '{rawLog,gamedatas}', jsonb_build_object('board', ${JSON.stringify(board)}::jsonb))
+    WHERE table_id = ${tableId}
+  `;
+  const game = await prisma.game.findUnique({
+    where: { tableId },
+    select: { rawGameLog: true, replay: { select: { tableId: true } } },
+  });
+  const logs = (game?.rawGameLog as { rawLog?: { data?: { logs?: unknown } } } | null)?.rawLog?.data?.logs;
+  if (!game?.replay || !Array.isArray(logs)) return false;
+  const setup = buildBoardSetup(logs, (board ?? undefined) as BgaBoard | undefined);
+  if (!setup) return false;
+  await prisma.gameReplay.update({ where: { tableId }, data: { setup: setup as unknown as Prisma.InputJsonValue } });
+  return true;
 }
 
 /**

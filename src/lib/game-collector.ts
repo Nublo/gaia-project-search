@@ -1,6 +1,6 @@
 import { BGAClient } from './bga-client';
 import { GameLogParser } from './game-parser';
-import { storeGame, gameExists } from './game-storage';
+import { storeGame, gameCollectionState, storeStartBoard } from './game-storage';
 
 export interface CollectionStats {
   playerId: number;
@@ -8,6 +8,10 @@ export interface CollectionStats {
   totalGames: number;
   newGames: number;
   newGamesLostFleet: number;
+  /** Already-stored games re-fetched from their replay page for the starting board. */
+  boardsFetched: number;
+  /** ...of which got a board setup (the rest have no map timeline to show it with). */
+  setupsAdded: number;
   skippedGames: number;
   failedGames: number;
   rateLimited: boolean;
@@ -54,6 +58,8 @@ export class GameCollector {
       totalGames: 0,
       newGames: 0,
       newGamesLostFleet: 0,
+      boardsFetched: 0,
+      setupsAdded: 0,
       skippedGames: 0,
       failedGames: 0,
       rateLimited: false,
@@ -92,24 +98,63 @@ export class GameCollector {
         for (const gameTable of games) {
           const tableId = parseInt(gameTable.table_id);
 
-          // Check if game already exists
-          if (await gameExists(tableId)) {
+          // Stored games are skipped once they have their starting board (or a
+          // board setup); older ones are re-fetched once to add it.
+          const state = await gameCollectionState(tableId);
+          if (state === 'done') {
             this.options.onProgress(`      ⏭️  Game ${tableId} already exists (skipping)`);
             stats.skippedGames++;
             continue;
           }
 
-          // Fetch and parse game
           try {
+            if (state === 'board') {
+              this.options.onProgress(`      🧩 Game ${tableId} exists without a board setup — fetching it...`);
+              await this.delay(100 + Math.random() * 400);
+              let board: unknown;
+              try {
+                ({ board } = await this.client.getGameReplay(gameTable.table_id));
+              } catch (err) {
+                const msg = err instanceof Error ? err.message : String(err);
+                if (msg.includes('You have reached a limit')) throw err;
+                // Not available (e.g. the page never loads): store a null board so
+                // later runs don't spend a replay view on it again.
+                await storeStartBoard(tableId, null);
+                this.options.onProgress(`      ⚠️  ${msg} — marked as unavailable`);
+                await this.delay(this.options.rateLimit);
+                continue;
+              }
+              const withSetup = await storeStartBoard(tableId, board);
+              stats.boardsFetched++;
+              if (withSetup) stats.setupsAdded++;
+              this.options.onProgress(`      ✅ Stored starting board for ${tableId}${withSetup ? ' (+ board setup)' : ' (no map timeline, board kept raw)'}`);
+              archivedLogErrors = 0;
+              await this.delay(this.options.rateLimit);
+              continue;
+            }
+
             this.options.onProgress(`      ⬇️  Fetching game ${tableId}...`);
+
+            // The replay page gives the log and the starting board; if it fails for
+            // any reason but the daily limit, fall back to logs.html (log only).
+            let logResponse;
+            await this.delay(100 + Math.random() * 400);
+            try {
+              const replay = await this.client.getGameReplay(gameTable.table_id);
+              logResponse = { ...replay.log, gamedatas: { board: replay.board } };
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : String(err);
+              if (msg.includes('You have reached a limit')) throw err;
+              this.options.onProgress(`      ⚠️  ${msg} — falling back to the log endpoint (no board setup)`);
+            }
 
             // Retry loop for bot-detection errors ("archived" fake errors)
             const MAX_ARCHIVED_RETRIES = 2;
-            let logResponse;
-            for (let attempt = 0; attempt <= MAX_ARCHIVED_RETRIES; attempt++) {
+            for (let attempt = 0; !logResponse && attempt <= MAX_ARCHIVED_RETRIES; attempt++) {
               await this.delay(100 + Math.random() * 400);
               try {
-                logResponse = await this.client.getGameLog(gameTable.table_id);
+                // A null board marks the replay page as tried, so it isn't re-fetched later.
+                logResponse = { ...(await this.client.getGameLog(gameTable.table_id)), gamedatas: { board: null } };
                 break;
               } catch (err) {
                 const msg = err instanceof Error ? err.message : String(err);

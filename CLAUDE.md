@@ -46,7 +46,7 @@ Example search queries:
 **Game Replays Table** (`game_replays`): One row per game whose log has a replayable galaxy map
 - `table_id` (Int, PK, FK → games), `version` (`MAP_TIMELINE_VERSION` the row was built with)
 - `map_timeline` (JSONB) — compact `StoredMapTimeline` (`src/lib/map-timeline.ts`) shown by `/timeline/[tableId]`; written by `storeGame()`, sent to remote by `push-to-remote.ts`
-- `setup` (JSONB, nullable) — Lost Fleet games only: `StoredBoardSetup` (`src/lib/board-setup.ts`) — techs, scoring tiles, boosters, ships, factions in seat order — rebuilt from the log's `board` snapshots; shown by `/game-setup?table=<id>` (which falls back to `/timeline/<id>` without it); written by `storeGame()`, sent to remote by `push-to-remote.ts`
+- `setup` (JSONB, nullable) — `StoredBoardSetup` (`src/lib/board-setup.ts`): techs, scoring tiles, boosters, ships, factions in seat order. Built from the replay page's starting board (`raw_game_log.rawLog.gamedatas.board`, any game collected via the replay page) or, for Lost Fleet, the log's own `board` copies; shown by `/game-setup?table=<id>` (which falls back to `/timeline/<id>` without it); written by `storeGame()` / `storeStartBoard()`, sent to remote by `push-to-remote.ts`
 - Kept out of `games` so searches never load it (~2 KB per game)
 
 ### Key Implementation Notes
@@ -175,6 +175,8 @@ npx tsx scripts/push-to-remote.ts
 **Prioritizing specific players**: to collect specific players first (instead of only the DB-derived eligible set), list their BGA player ids — one per line — in `scripts/priority-players.txt` (gitignored; blank/`#` lines ignored). On the next `collect-parallel.ts` run they're **prepended** to the front of the queue (then normal eligible players follow), and the file is cleared automatically so the override fires exactly once. If a rate limit interrupts before a listed player finishes, they're picked up again by the normal `PlayerCollectionState` rules next run.
 
 **BGA Rate Limit**: ~100 game log views per day per account. The collector detects this immediately and stops cleanly. Re-run next day or use multiple accounts.
+
+**Replay page instead of logs.html**: games are read from their BGA replay page (`BGAClient.getGameReplay()`), which gives the same log (`g_gamelogs`) plus the starting board (`gameui.gamedatas.board`); it falls back to `logs.html` (no board) on anything but the limit. Already-stored games without a starting board are re-fetched once to add it (`gameCollectionState()` → `storeStartBoard()`); a `board: null` marker means the replay page wasn't available, so it isn't tried again. Each re-fetch costs a replay view.
 
 ## Automated Daily Collection
 

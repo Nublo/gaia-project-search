@@ -63,7 +63,16 @@ describe('buildBoardSetup', () => {
     expect(setup.vpRequirement).toBe(true);
   });
 
-  it('skips base games', () => {
+  it('uses the replay page\'s starting board, for base games too', () => {
+    const start = { ...board, config: {}, lostFleet: undefined, availBoosters: [1, 3, 5, 7, 9] };
+    const base = buildBoardSetup([{ data: logs[0].data }], start)!;
+    expect(base.slots.std).toEqual(board.techs);
+    expect(base.slots.bst).toEqual([1, 3, 5, 7, 9]);
+    expect(base.slots.shp).toEqual([]);
+    expect(base.races).toEqual([17, 3]);
+  });
+
+  it('skips base games without a starting board', () => {
     expect(buildBoardSetup([{ data: [{ type: 'notifyUpdate', args: { board: { ...board, config: {} } } }] }])).toBeNull();
     expect(buildBoardSetup([{ data: [] }])).toBeNull();
   });
@@ -79,7 +88,7 @@ describe('boardSetupToSetup', () => {
         { round: 1, playerId: B, changes: [{ hex: '1,0', structures: [{ buildingId: 4, playerId: B, fed: false }] }] },
       ],
     };
-    const result = boardSetupToSetup(buildBoardSetup(logs)!, timeline, 2);
+    const result = boardSetupToSetup(buildBoardSetup(logs)!, timeline, 2, true);
     expect(result.buildings).toEqual({ '0,0': 4 });
     expect(result.planets).toEqual(timeline.planets);
     expect(result.slots.standard).toEqual([4, 3, 2, 1, 8, 7, 5, 9, 6]);
