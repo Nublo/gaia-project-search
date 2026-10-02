@@ -180,7 +180,7 @@ npx tsx scripts/push-to-remote.ts
 
 ## Automated Daily Collection
 
-`scripts/collect-daily.sh` runs automatically via launchd (macOS). It runs `scripts/collect-parallel.ts <NUM_USERS>`, which builds the eligible-player queue from the `PlayerCollectionState` table (via `getCollectablePlayerIds()`: `reachEnd = false` OR `collectionDate` older than 1 month), optionally prepends any one-shot priority ids from `scripts/priority-players.txt`, then runs `collect-player.ts` for each player across N parallel workers (one per BGA account). Afterwards it runs `push-to-remote.ts` and busts the production cache. Each run shifts the next scheduled time +10 min to avoid BGA rate limit collisions.
+`scripts/collect-daily.sh` runs automatically via launchd (macOS). It runs `scripts/collect-parallel.ts <NUM_USERS>`, which builds the eligible-player queue from the `PlayerCollectionState` table (via `getCollectablePlayerIds()`: `reachEnd = false` OR `collectionDate` older than 1 month), optionally prepends any one-shot priority ids from `scripts/priority-players.txt`, then runs `collect-player.ts` for each player across N parallel workers (one per BGA account). Afterwards it runs `push-to-remote.ts` (new games), then `push-game-replay-setup.ts` (board setups added to games already on remote), and busts the production cache. Each run shifts the next scheduled time +10 min to avoid BGA rate limit collisions.
 
 - **State file**: `~/.config/bgagaia/state.json` — contains `nextRunAt` and `lastRunDate`; edit `nextRunAt` to reset the schedule
 - **Logs**: `logs/collect-YYYY-MM-DD.log`
